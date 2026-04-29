@@ -445,7 +445,7 @@
 <body>
 <script>
   var hash = window.location.hash;
-  if (hash && hash.indexOf('invite_token') !== -1) {
+  if (hash && (hash.indexOf('invite_token') !== -1 || hash.indexOf('recovery_token') !== -1)) {
     window.location.replace('/admin/' + hash);
   }
 </script>
