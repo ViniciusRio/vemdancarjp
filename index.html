@@ -443,7 +443,12 @@
   </style>
 </head>
 <body>
-
+<script>
+  var hash = window.location.hash;
+  if (hash && hash.indexOf('invite_token') !== -1) {
+    window.location.replace('/admin/' + hash);
+  }
+</script>
   <header class="hero">
     <p class="hero-tag">João Pessoa · PB</p>
     <h1 class="hero-title">Forró <em>JP</em></h1>
