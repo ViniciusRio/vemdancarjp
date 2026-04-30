@@ -14,7 +14,7 @@ onMounted(() => {
   <div class="app">
     <header class="hero">
       <p class="hero-tag">João Pessoa · PB</p>
-      <h1 class="hero-title">Forró <em>JP</em></h1>
+      <h1 class="hero-title">Vem Dançar <em>JP</em></h1>
       <p class="hero-sub">Agenda fixa semanal de Pé de Serra</p>
     </header>
 
