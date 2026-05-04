@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useAgendaStore } from '@/stores/agendaStore'
 import DayFilter from '@/features/agenda/components/DayFilter.vue'
 import AgendaList from '@/features/agenda/components/AgendaList.vue'
+import AgendaFooter from './features/agenda/components/AgendaFooter.vue'
 
 const store = useAgendaStore()
 
@@ -34,6 +35,7 @@ onMounted(() => {
         <DayFilter :days="store.agenda.days" />
       </div>
       <AgendaList />
+      <AgendaFooter :lastUpdated="store.agenda.lastUpdated" />
     </template>
   </div>
 </template>
