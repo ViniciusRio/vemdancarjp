@@ -1,12 +1,24 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useAgenda } from '@/composables/useAgenda'
+import { useAuthStore } from '@/stores/authStore'
 import DayFilter from '@/features/agenda/components/DayFilter.vue'
 import AgendaList from '@/features/agenda/components/AgendaList.vue'
 import VariableVenues from '@/features/agenda/components/VariableVenues.vue'
 import OtherVenues from '@/features/agenda/components/OtherVenues.vue'
 import AgendaFooter from '@/features/agenda/components/AgendaFooter.vue'
+import ToastNotification from '@/components/ui/ToastNotification.vue'
 
 const { agenda, isLoading, error } = useAgenda()
+const authStore = useAuthStore()
+const showPendingToast = ref(false)
+
+onMounted(async () => {
+  await authStore.init()
+  if (authStore.isLoggedIn && authStore.isPending) {
+    showPendingToast.value = true
+  }
+})
 </script>
 
 <template>
@@ -48,5 +60,12 @@ const { agenda, isLoading, error } = useAgenda()
     >
       ⚙️ Área administrativa
     </RouterLink>
+
+    <ToastNotification
+      v-if="showPendingToast"
+      message="Solicitação de acesso enviada! Aguarde a aprovação de um administrador."
+      type="warning"
+      @close="showPendingToast = false"
+    />
   </div>
 </template>
