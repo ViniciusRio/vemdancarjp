@@ -11,16 +11,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  save: [eventData: {
-    id?: string
-    dayId: string
-    name: string
-    venue: string
-    neighborhood: string
-    instagram: string | null
-    frequency: string | null
-    sortOrder: number
-  }]
+  save: [
+    eventData: {
+      id?: string
+      dayId: string
+      name: string
+      venue: string
+      neighborhood: string
+      instagram: string | null
+      frequency: string | null
+      sortOrder: number
+    },
+  ]
 }>()
 
 const name = ref('')
@@ -30,21 +32,35 @@ const instagram = ref('')
 const frequency = ref('')
 
 // quando o modal abre, preenche os campos se for edição
-watch(() => props.isOpen, (open) => {
-  if (open && props.editingEvent) {
-    name.value = props.editingEvent.name
-    venue.value = props.editingEvent.venue
-    neighborhood.value = props.editingEvent.neighborhood
-    instagram.value = props.editingEvent.instagram ?? ''
-    frequency.value = props.editingEvent.frequency ?? ''
-  } else if (open) {
-    name.value = ''
-    venue.value = ''
-    neighborhood.value = ''
-    instagram.value = ''
-    frequency.value = ''
-  }
-})
+watch(
+  () => props.isOpen,
+  (open) => {
+    if (open && props.editingEvent) {
+      name.value = props.editingEvent.name
+      venue.value = props.editingEvent.venue
+      neighborhood.value = props.editingEvent.neighborhood
+      instagram.value = props.editingEvent.instagram ?? ''
+      frequency.value = props.editingEvent.frequency ?? ''
+    } else if (open) {
+      name.value = ''
+      venue.value = ''
+      neighborhood.value = ''
+      instagram.value = ''
+      frequency.value = ''
+    }
+  },
+)
+
+function formatInstagram(value: string): string | null {
+  if (!value) return null
+  const clean = value.trim()
+  if (!clean) return null
+  // se já tiver a URL completa, retorna como está
+  if (clean.startsWith('http')) return clean
+  // remove @ se o usuário colocar
+  const username = clean.replace('@', '')
+  return `https://www.instagram.com/${username}`
+}
 
 function handleSave() {
   if (!name.value || !venue.value || !neighborhood.value) return
@@ -55,28 +71,21 @@ function handleSave() {
     name: name.value,
     venue: venue.value,
     neighborhood: neighborhood.value,
-    instagram: instagram.value || null,
+    instagram: formatInstagram(instagram.value),
     frequency: frequency.value || null,
-    sortOrder: props.editingEvent?.sortOrder ?? 99
+    sortOrder: props.editingEvent?.sortOrder ?? 99,
   })
 }
 </script>
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center px-4"
-    >
+    <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4">
       <!-- Backdrop -->
-      <div
-        class="absolute inset-0 bg-black/30 backdrop-blur-sm"
-        @click="emit('close')"
-      ></div>
+      <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" @click="emit('close')"></div>
 
       <!-- Modal -->
       <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10">
-
         <!-- Header -->
         <div class="flex items-center justify-between mb-6">
           <div>
@@ -96,9 +105,7 @@ function handleSave() {
         <!-- Form -->
         <div class="space-y-4">
           <div>
-            <label class="text-xs font-semibold text-gray-500 mb-1 block">
-              Nome do evento *
-            </label>
+            <label class="text-xs font-semibold text-gray-500 mb-1 block"> Nome do evento * </label>
             <input
               v-model="name"
               type="text"
@@ -108,9 +115,7 @@ function handleSave() {
           </div>
 
           <div>
-            <label class="text-xs font-semibold text-gray-500 mb-1 block">
-              Local *
-            </label>
+            <label class="text-xs font-semibold text-gray-500 mb-1 block"> Local * </label>
             <input
               v-model="venue"
               type="text"
@@ -120,9 +125,7 @@ function handleSave() {
           </div>
 
           <div>
-            <label class="text-xs font-semibold text-gray-500 mb-1 block">
-              Bairro *
-            </label>
+            <label class="text-xs font-semibold text-gray-500 mb-1 block"> Bairro * </label>
             <input
               v-model="neighborhood"
               type="text"
@@ -138,9 +141,13 @@ function handleSave() {
             <input
               v-model="instagram"
               type="text"
-              placeholder="https://www.instagram.com/..."
+              placeholder="Ex: forronacaixajp ou @forronacaixajp"
               class="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-800 focus:outline-none focus:border-green-400 transition-all"
             />
+            <p v-if="instagram" class="text-xs text-gray-400 mt-1">
+              Será salvo como:
+              <span class="text-green-600 font-medium">{{ formatInstagram(instagram) }}</span>
+            </p>
           </div>
 
           <div>

@@ -6,7 +6,6 @@ import EventModal from '@/features/agenda/components/EventModal.vue'
 import type { AdminEvent } from '@/features/agenda/composables/useAgendaAdmin'
 import { useRouter } from 'vue-router'
 
-
 const authStore = useAuthStore()
 const { days, isLoading, error, fetchEvents, deleteEvent, saveEvent } = useAdminAgenda()
 
@@ -16,13 +15,9 @@ const activeDayId = ref('')
 const activeDayLabel = ref('')
 const router = useRouter()
 
-const totalEvents = computed(() =>
-  days.value.reduce((sum, day) => sum + day.events.length, 0)
-)
+const totalEvents = computed(() => days.value.reduce((sum, day) => sum + day.events.length, 0))
 
-const daysWithEvents = computed(() =>
-  days.value.filter(day => day.events.length > 0).length
-)
+const daysWithEvents = computed(() => days.value.filter((day) => day.events.length > 0).length)
 
 async function handleLogout() {
   try {
@@ -69,12 +64,13 @@ async function handleDelete(id: string) {
 
 <template>
   <div class="min-h-screen bg-green-50">
-
     <!-- Topbar -->
     <header class="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <span class="font-bold text-green-900">Vem Dançar JP</span>
-        <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Admin</span>
+        <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700"
+          >Admin</span
+        >
       </div>
       <div class="flex items-center gap-3">
         <span class="text-sm text-gray-500">{{ authStore.user?.email }}</span>
@@ -88,7 +84,6 @@ async function handleDelete(id: string) {
     </header>
 
     <main class="max-w-3xl mx-auto px-6 py-8">
-
       <!-- Header -->
       <div class="mb-6">
         <h1 class="text-xl font-bold text-green-900">Agenda semanal</h1>
@@ -113,9 +108,7 @@ async function handleDelete(id: string) {
       </div>
 
       <!-- Error -->
-      <div v-else-if="error" class="text-center py-8 text-red-500 text-sm">
-        Erro: {{ error }}
-      </div>
+      <div v-else-if="error" class="text-center py-8 text-red-500 text-sm">Erro: {{ error }}</div>
 
       <!-- Days -->
       <div v-else class="space-y-4">
@@ -128,7 +121,9 @@ async function handleDelete(id: string) {
           <div class="px-5 py-3 border-b border-gray-50 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-sm font-semibold text-green-900">{{ day.label }}</span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-600 font-semibold">
+              <span
+                class="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-600 font-semibold"
+              >
                 {{ day.events.length }} {{ day.events.length === 1 ? 'evento' : 'eventos' }}
               </span>
             </div>
@@ -156,7 +151,10 @@ async function handleDelete(id: string) {
               <p class="text-xs text-gray-400">{{ event.venue }} · {{ event.neighborhood }}</p>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
-              <span v-if="event.frequency" class="text-xs px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-semibold">
+              <span
+                v-if="event.frequency"
+                class="text-xs px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-semibold"
+              >
                 {{ event.frequency }}
               </span>
               <button
