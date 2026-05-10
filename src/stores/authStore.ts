@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const isAdmin = ref(false)
   const isLoading = ref(true)
+  const isPending = ref(false)
   let authListenerUnsubscribe: (() => void) | null = null
 
   const isLoggedIn = computed(() => !!user.value)
@@ -15,10 +16,23 @@ export const useAuthStore = defineStore('auth', () => {
     const { data } = await supabase
       .from('admins')
       .select('id')
-      .eq('id', userId) // ← faz parte da query
-      .single()
-
+      .eq('id', userId)
+      .maybeSingle()
     return !!data
+  }
+
+  async function checkPending(userId: string): Promise<boolean> {
+    const { data } = await supabase
+      .from('pending_admins')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+    return !!data
+  }
+
+  async function requestAdminAccess(userId: string, email: string, name: string) {
+    await supabase.from('pending_admins').insert({ id: userId, email, name })
+    isPending.value = true
   }
 
   async function init() {
@@ -26,21 +40,43 @@ export const useAuthStore = defineStore('auth', () => {
 
     isLoading.value = true
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    const { data: { session } } = await supabase.auth.getSession()
     user.value = session?.user ?? null
+
+    console.log('init - user:', user.value?.email)
+    console.log('init - session:', !!session)
 
     if (user.value) {
       isAdmin.value = await checkAdmin(user.value.id)
+      console.log('init - isAdmin:', isAdmin.value)
+
+      if (!isAdmin.value) {
+        isPending.value = await checkPending(user.value.id)
+        console.log('init - isPending:', isPending.value)
+
+        if (!isPending.value) {
+          console.log('init - creating pending request...')
+          await requestAdminAccess(
+            user.value.id,
+            user.value.email ?? '',
+            user.value.user_metadata?.full_name ?? ''
+          )
+        }
+      }
     }
 
     if (!authListenerUnsubscribe) {
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange(async (_, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
         user.value = session?.user ?? null
-        isAdmin.value = user.value ? await checkAdmin(user.value.id) : false
+        if (user.value) {
+          isAdmin.value = await checkAdmin(user.value.id)
+          if (!isAdmin.value) {
+            isPending.value = await checkPending(user.value.id)
+          }
+        } else {
+          isAdmin.value = false
+          isPending.value = false
+        }
       })
       authListenerUnsubscribe = () => subscription.unsubscribe()
     }
@@ -52,15 +88,16 @@ export const useAuthStore = defineStore('auth', () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/admin`,
-      },
+        redirectTo: `${window.location.origin}/admin`
+      }
     })
   }
 
   async function logout() {
-    supabase.auth.signOut()
+    await supabase.auth.signOut()
     user.value = null
     isAdmin.value = false
+    isPending.value = false
   }
 
   return {
@@ -68,8 +105,9 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isLoading,
     isLoggedIn,
+    isPending,
     init,
     loginWithGoogle,
-    logout,
+    logout
   }
 })
