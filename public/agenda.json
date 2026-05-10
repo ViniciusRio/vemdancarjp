@@ -30,7 +30,7 @@
           "name": "Gravação Cantos e Contos",
           "venue": "Bessa Grill",
           "neighborhood": "Bessa",
-          "instagram": null,
+          "instagram": "https://www.instagram.com/bessagrilljp",
           "frequency": null
         },
         {
@@ -141,23 +141,23 @@
     {
       "name": "Arpoador",
       "neighborhood": "Tambaú",
-      "instagram": null,
+      "instagram": "https://www.instagram.com/arpoadorjp",
       "days": "Quinta a domingo"
     },
     {
       "name": "Clube Cabo Branco",
       "neighborhood": "Miramar",
-      "instagram": null,
+      "instagram": "https://www.instagram.com/clubecabobranco",
       "days": "Sexta a domingo"
     }
   ],
   "otherVenues": [
-    { "name": "Seu Antônio Bar", "neighborhood": "Bessa" },
-    { "name": "Barril 21", "neighborhood": "Bessa" },
-    { "name": "Dorys Prime", "neighborhood": "José Américo" },
-    { "name": "Priscilla's Halls", "neighborhood": "Mandacaru" },
-    { "name": "Beer Time", "neighborhood": "José Américo" },
-    { "name": "Forronejo", "neighborhood": "Altiplano" },
-    { "name": "Mansão Music Bar", "neighborhood": "Geisel" }
+    { "name": "Seu Antônio Bar", "neighborhood": "Bessa", "instagram": "https://www.instagram.com/seuantoniobar" },
+    { "name": "Barril 21", "neighborhood": "Bessa", "instagram": "https://www.instagram.com/barril21jp" },
+    { "name": "Dorys Prime", "neighborhood": "José Américo", "instagram": "https://www.instagram.com/dorysprime_oficial" },
+    { "name": "Priscilla's Halls", "neighborhood": "Mandacaru", "instagram": "https://www.instagram.com/priscyllashall" },
+    { "name": "Beer Time", "neighborhood": "José Américo", "instagram": "https://www.instagram.com/beertimejp" },
+    { "name": "Forronejo", "neighborhood": "Altiplano", "instagram": "https://www.instagram.com/forronejomusicbar" },
+    { "name": "Mansão Music Bar", "neighborhood": "Geisel", "instagram": "https://www.instagram.com/mansaogeisel" }
   ]
 }
