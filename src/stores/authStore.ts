@@ -11,22 +11,24 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!user.value)
 
-async function checkAdmin(userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('admins')
-    .select('id')
-    .eq('id', userId)  // ← faz parte da query
-    .single()
+  async function checkAdmin(userId: string): Promise<boolean> {
+    const { data } = await supabase
+      .from('admins')
+      .select('id')
+      .eq('id', userId) // ← faz parte da query
+      .single()
 
-  return !!data
-}
+    return !!data
+  }
 
-   async function init() {
+  async function init() {
     if (user.value) return
 
     isLoading.value = true
 
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     user.value = session?.user ?? null
 
     if (user.value) {
@@ -34,11 +36,11 @@ async function checkAdmin(userId: string): Promise<boolean> {
     }
 
     if (!authListenerUnsubscribe) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (_, session) => {
         user.value = session?.user ?? null
-        isAdmin.value = user.value
-          ? await checkAdmin(user.value.id)
-          : false
+        isAdmin.value = user.value ? await checkAdmin(user.value.id) : false
       })
       authListenerUnsubscribe = () => subscription.unsubscribe()
     }
@@ -46,23 +48,20 @@ async function checkAdmin(userId: string): Promise<boolean> {
     isLoading.value = false
   }
 
-
   async function loginWithGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/admin`
-      }
+        redirectTo: `${window.location.origin}/admin`,
+      },
     })
   }
-
 
   async function logout() {
     supabase.auth.signOut()
     user.value = null
     isAdmin.value = false
   }
-
 
   return {
     user,
@@ -71,6 +70,6 @@ async function checkAdmin(userId: string): Promise<boolean> {
     isLoggedIn,
     init,
     loginWithGoogle,
-    logout
+    logout,
   }
 })

@@ -30,13 +30,15 @@ export const agendaService = {
       label: DAY_LABELS[dayId] ?? dayId,
       events: (eventsResult.data ?? [])
         .filter((row) => row.day_id === dayId)
-        .map((row): Event => ({
-          name: row.name,
-          venue: row.venue,
-          neighborhood: row.neighborhood,
-          instagram: row.instagram,
-          frequency: row.frequency,
-        })),
+        .map(
+          (row): Event => ({
+            name: row.name,
+            venue: row.venue,
+            neighborhood: row.neighborhood,
+            instagram: row.instagram,
+            frequency: row.frequency,
+          }),
+        ),
     }))
 
     const variableVenues: VariableVenue[] = (variableVenuesResult.data ?? []).map((row) => ({

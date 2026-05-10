@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { supabaseQuery } from '@/services/supabase'
+import { supabase } from '@/services/supabase'
 import type { Event } from '@/features/agenda/types'
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -11,7 +11,7 @@ const DAY_LABELS: Record<string, string> = {
   thursday: 'Quinta-feira',
   friday: 'Sexta-feira',
   saturday: 'Sábado',
-  sunday: 'Domingo'
+  sunday: 'Domingo',
 }
 
 export interface AdminEvent extends Event {
@@ -35,7 +35,7 @@ export function useAdminAgenda() {
     isLoading.value = true
     error.value = null
 
-    const { data, error: err } = await supabaseQuery
+    const { data, error: err } = await supabase
       .from('events')
       .select('*')
       .order('sort_order', { ascending: true })
@@ -46,12 +46,12 @@ export function useAdminAgenda() {
       return
     }
 
-    days.value = DAY_ORDER.map(dayId => ({
+    days.value = DAY_ORDER.map((dayId) => ({
       id: dayId,
       label: DAY_LABELS[dayId] ?? dayId,
       events: (data ?? [])
-        .filter(row => row.day_id === dayId)
-        .map(row => ({
+        .filter((row) => row.day_id === dayId)
+        .map((row) => ({
           id: row.id,
           dayId: row.day_id,
           name: row.name,
@@ -59,8 +59,8 @@ export function useAdminAgenda() {
           neighborhood: row.neighborhood,
           instagram: row.instagram,
           frequency: row.frequency,
-          sortOrder: row.sort_order
-        }))
+          sortOrder: row.sort_order,
+        })),
     }))
 
     isLoading.value = false
@@ -83,30 +83,28 @@ export function useAdminAgenda() {
       neighborhood: eventData.neighborhood,
       instagram: eventData.instagram || null,
       frequency: eventData.frequency || null,
-      sort_order: eventData.sortOrder
+      sort_order: eventData.sortOrder,
     }
 
     if (eventData.id) {
-      const { error: err } = await supabaseQuery
-        .from('events')
-        .update(payload)
-        .eq('id', eventData.id)
-      if (err) { error.value = err.message; return }
+      const { error: err } = await supabase.from('events').update(payload).eq('id', eventData.id)
+      if (err) {
+        error.value = err.message
+        return
+      }
     } else {
-      const { error: err } = await supabaseQuery
-        .from('events')
-        .insert(payload)
-      if (err) { error.value = err.message; return }
+      const { error: err } = await supabase.from('events').insert(payload)
+      if (err) {
+        error.value = err.message
+        return
+      }
     }
 
     await fetchEvents()
   }
 
   async function deleteEvent(id: string) {
-    const { error: err } = await supabaseQuery
-      .from('events')
-      .delete()
-      .eq('id', id)
+    const { error: err } = await supabase.from('events').delete().eq('id', id)
 
     if (err) {
       error.value = err.message
@@ -122,6 +120,6 @@ export function useAdminAgenda() {
     error,
     fetchEvents,
     deleteEvent,
-    saveEvent
+    saveEvent,
   }
 }
