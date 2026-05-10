@@ -1,7 +1,6 @@
 import { ref } from 'vue'
-import type { Event } from '@/features/agenda/types'
 import { supabaseQuery } from '@/services/supabase'
-
+import type { Event } from '@/features/agenda/types'
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
@@ -67,6 +66,42 @@ export function useAdminAgenda() {
     isLoading.value = false
   }
 
+  async function saveEvent(eventData: {
+    id?: string
+    dayId: string
+    name: string
+    venue: string
+    neighborhood: string
+    instagram: string | null
+    frequency: string | null
+    sortOrder: number
+  }) {
+    const payload = {
+      day_id: eventData.dayId,
+      name: eventData.name,
+      venue: eventData.venue,
+      neighborhood: eventData.neighborhood,
+      instagram: eventData.instagram || null,
+      frequency: eventData.frequency || null,
+      sort_order: eventData.sortOrder
+    }
+
+    if (eventData.id) {
+      const { error: err } = await supabaseQuery
+        .from('events')
+        .update(payload)
+        .eq('id', eventData.id)
+      if (err) { error.value = err.message; return }
+    } else {
+      const { error: err } = await supabaseQuery
+        .from('events')
+        .insert(payload)
+      if (err) { error.value = err.message; return }
+    }
+
+    await fetchEvents()
+  }
+
   async function deleteEvent(id: string) {
     const { error: err } = await supabaseQuery
       .from('events')
@@ -86,6 +121,7 @@ export function useAdminAgenda() {
     isLoading,
     error,
     fetchEvents,
-    deleteEvent
+    deleteEvent,
+    saveEvent
   }
 }

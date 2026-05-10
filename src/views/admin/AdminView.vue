@@ -1,10 +1,20 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useAdminAgenda } from '@/features/agenda/composables/useAgendaAdmin'
+import EventModal from '@/features/agenda/components/EventModal.vue'
+import type { AdminEvent } from '@/features/agenda/composables/useAgendaAdmin'
+import { useRouter } from 'vue-router'
+
 
 const authStore = useAuthStore()
-const { days, isLoading, error, fetchEvents, deleteEvent } = useAdminAgenda()
+const { days, isLoading, error, fetchEvents, deleteEvent, saveEvent } = useAdminAgenda()
+
+const isModalOpen = ref(false)
+const editingEvent = ref<AdminEvent | null>(null)
+const activeDayId = ref('')
+const activeDayLabel = ref('')
+const router = useRouter()
 
 const totalEvents = computed(() =>
   days.value.reduce((sum, day) => sum + day.events.length, 0)
@@ -14,9 +24,42 @@ const daysWithEvents = computed(() =>
   days.value.filter(day => day.events.length > 0).length
 )
 
+async function handleLogout() {
+  try {
+    await authStore.logout()
+    router.push({ name: 'admin-login' })
+  } catch (err) {
+    console.error('Erro ao fazer logout:', err)
+  }
+}
+
 onMounted(() => {
   fetchEvents()
 })
+
+function openAddModal(dayId: string, dayLabel: string) {
+  editingEvent.value = null
+  activeDayId.value = dayId
+  activeDayLabel.value = dayLabel
+  isModalOpen.value = true
+}
+
+function openEditModal(event: AdminEvent, dayLabel: string) {
+  editingEvent.value = event
+  activeDayId.value = event.dayId
+  activeDayLabel.value = dayLabel
+  isModalOpen.value = true
+}
+
+function closeModal() {
+  isModalOpen.value = false
+  editingEvent.value = null
+}
+
+async function handleSave(eventData: Parameters<typeof saveEvent>[0]) {
+  await saveEvent(eventData)
+  closeModal()
+}
 
 async function handleDelete(id: string) {
   if (!confirm('Tem certeza que deseja remover este evento?')) return
@@ -36,8 +79,8 @@ async function handleDelete(id: string) {
       <div class="flex items-center gap-3">
         <span class="text-sm text-gray-500">{{ authStore.user?.email }}</span>
         <button
-          @click="authStore.logout()"
-          class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
+          @click="handleLogout"
+          class="cursor-pointer text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all"
         >
           Sair
         </button>
@@ -47,11 +90,9 @@ async function handleDelete(id: string) {
     <main class="max-w-3xl mx-auto px-6 py-8">
 
       <!-- Header -->
-      <div class="flex items-center justify-between mb-6">
-        <div>
-          <h1 class="text-xl font-bold text-green-900">Agenda semanal</h1>
-          <p class="text-sm text-gray-400 mt-0.5">Gerencie os eventos por dia da semana</p>
-        </div>
+      <div class="mb-6">
+        <h1 class="text-xl font-bold text-green-900">Agenda semanal</h1>
+        <p class="text-sm text-gray-400 mt-0.5">Gerencie os eventos por dia da semana</p>
       </div>
 
       <!-- Stats -->
@@ -91,7 +132,10 @@ async function handleDelete(id: string) {
                 {{ day.events.length }} {{ day.events.length === 1 ? 'evento' : 'eventos' }}
               </span>
             </div>
-            <button class="text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors">
+            <button
+              @click="openAddModal(day.id, day.label)"
+              class="text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors"
+            >
               + Adicionar
             </button>
           </div>
@@ -115,7 +159,12 @@ async function handleDelete(id: string) {
               <span v-if="event.frequency" class="text-xs px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-semibold">
                 {{ event.frequency }}
               </span>
-             
+              <button
+                @click="openEditModal(event, day.label)"
+                class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-green-50 hover:text-green-600 transition-all"
+              >
+                ✏️
+              </button>
               <button
                 @click="handleDelete(event.id)"
                 class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
@@ -127,5 +176,15 @@ async function handleDelete(id: string) {
         </div>
       </div>
     </main>
+
+    <!-- Modal -->
+    <EventModal
+      :is-open="isModalOpen"
+      :editing-event="editingEvent"
+      :day-id="activeDayId"
+      :day-label="activeDayLabel"
+      @close="closeModal"
+      @save="handleSave"
+    />
   </div>
 </template>

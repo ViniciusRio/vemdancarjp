@@ -7,9 +7,10 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const isAdmin = ref(false)
   const isLoading = ref(true)
+  let authListenerUnsubscribe: (() => void) | null = null
 
   const isLoggedIn = computed(() => !!user.value)
-  
+
 async function checkAdmin(userId: string): Promise<boolean> {
   const { data } = await supabase
     .from('admins')
@@ -32,13 +33,15 @@ async function checkAdmin(userId: string): Promise<boolean> {
       isAdmin.value = await checkAdmin(user.value.id)
     }
 
-    // listing in real-time for auth changes
-    supabase.auth.onAuthStateChange(async (_, session) => {
-      user.value = session?.user ?? null
-      isAdmin.value = user.value
-        ? await checkAdmin(user.value.id)
-        : false
-    })
+    if (!authListenerUnsubscribe) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+        user.value = session?.user ?? null
+        isAdmin.value = user.value
+          ? await checkAdmin(user.value.id)
+          : false
+      })
+      authListenerUnsubscribe = () => subscription.unsubscribe()
+    }
 
     isLoading.value = false
   }
@@ -55,7 +58,7 @@ async function checkAdmin(userId: string): Promise<boolean> {
 
 
   async function logout() {
-    await supabase.auth.signOut()
+    supabase.auth.signOut()
     user.value = null
     isAdmin.value = false
   }
