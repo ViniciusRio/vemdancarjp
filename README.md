@@ -1,54 +1,71 @@
-# forro-jp-vue
+# Vem Dançar JP
 
-This template should help get you started developing with Vue 3 in Vite.
+Weekly forró pé de serra schedule for João Pessoa, PB, Brazil.
 
-## Recommended IDE Setup
+🌐 [vemdancarjp.com.br](https://vemdancarjp.com.br)
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## About
 
-## Recommended Browser Setup
+A website for browsing and managing the weekly forró pé de serra schedule in João Pessoa. The agenda is maintained by administrators through a built-in dashboard, with no need to edit code.
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## Stack
 
-## Type Support for `.vue` Imports in TS
+- [Vue 3](https://vuejs.org/) with Composition API
+- [TypeScript](https://www.typescriptlang.org/)
+- [Vite](https://vitejs.dev/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Pinia](https://pinia.vuejs.org/) for state management
+- [Supabase](https://supabase.com/) for database and authentication
+- Deployed via [GitHub Pages](https://pages.github.com/) with GitHub Actions
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## Project structure
 
-## Customize configuration
+```
+src/
+  features/
+    agenda/
+      components/   # EventCard, AgendaList, DayFilter, etc.
+      composables/  # useAgenda
+      types/        # TypeScript interfaces
+  stores/           # agendaStore, authStore
+  services/         # agendaService, supabase
+  composables/      # useAgenda
+  views/            # AgendaHomeView, admin views
+  router/           # Vue Router
+```
 
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Local setup
 
 ```sh
+# install dependencies
 npm install
-```
 
-### Compile and Hot-Reload for Development
+# create environment variables file
+cp .env.example .env
+# fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 
-```sh
+# run in development
 npm run dev
-```
 
-### Type-Check, Compile and Minify for Production
-
-```sh
+# build for production
 npm run build
-```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
-
-```sh
+# run unit tests
 npm run test:unit
-```
 
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
+# lint
 npm run lint
 ```
+
+## Environment variables
+
+Create a `.env` file at the project root:
+
+```
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_anon_key
+```
+
+## Deployment
+
+Deployment is automatic via GitHub Actions on every push to the `main` branch. Environment variables must be set under **Settings → Secrets and variables → Actions** in the repository.
