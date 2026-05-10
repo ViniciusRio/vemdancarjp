@@ -22,6 +22,7 @@ export interface VariableVenue {
 export interface OtherVenue {
   name: string
   neighborhood: string
+  instagram: string | null
 }
 
 export interface Agenda {
