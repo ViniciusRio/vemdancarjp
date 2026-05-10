@@ -1,7 +1,7 @@
-import { agendaService } from '@/features/agenda/services/agendaService'
 import type { Agenda, DayFilter } from '@/features/agenda/types'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { agendaService } from '@/services/agendaService'
 
 export const useAgendaStore = defineStore('agenda', () => {
   // watch agenda with ref, then know the change. Start null
