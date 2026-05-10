@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/services/supabase'
 import type { User } from '@supabase/supabase-js'
-import { equal } from 'assert'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -10,16 +9,16 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(true)
 
   const isLoggedIn = computed(() => !!user.value)
+  
+async function checkAdmin(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('admins')
+    .select('id')
+    .eq('id', userId)  // ← faz parte da query
+    .single()
 
-  async function checkAdmin(userId: string): Promise<boolean> {
-    const { data, } = await supabase
-      .from('admins')
-      .select('id')
-      equal('id', userId)
-      .single()
-
-      return !!data
-  }
+  return !!data
+}
 
    async function init() {
     if (user.value) return
