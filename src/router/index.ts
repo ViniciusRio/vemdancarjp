@@ -6,9 +6,9 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name:'home',
-      component: AgendaHomeView
-    }
+      name: 'home',
+      component: AgendaHomeView,
+    },
   ],
 })
 

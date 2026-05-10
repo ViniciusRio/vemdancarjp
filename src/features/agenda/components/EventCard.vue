@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Event } from '../types';
+import type { Event } from '../types'
 
 const props = defineProps<{
   event: Event
@@ -17,14 +17,20 @@ function getIcone(name: string): string {
 </script>
 <template>
   <component
-  :is="props.event.instagram ? 'a' : 'div'"
-  :href="props.event.instagram ?? undefined"
-  :target="props.event.instagram ? '_blank' : undefined"
-  :rel="props.event.instagram ? 'noopener' : undefined"
-  class="flex items-start gap-3 p-3 bg-white border-2 border-gray-100 rounded-xl mb-2 no-underline text-inherit transition-all"
-  :class="props.event.instagram ? 'cursor-pointer hover:border-green-200 hover:-translate-y-px' : 'cursor-default'"
->
-    <div class="w-10 h-10 rounded-xl bg-green-50 border-2 border-green-100 flex items-center justify-center flex-shrink-0 text-lg">
+    :is="props.event.instagram ? 'a' : 'div'"
+    :href="props.event.instagram ?? undefined"
+    :target="props.event.instagram ? '_blank' : undefined"
+    :rel="props.event.instagram ? 'noopener' : undefined"
+    class="flex items-start gap-3 p-3 bg-white border-2 border-gray-100 rounded-xl mb-2 no-underline text-inherit transition-all"
+    :class="
+      props.event.instagram
+        ? 'cursor-pointer hover:border-green-200 hover:-translate-y-px'
+        : 'cursor-default'
+    "
+  >
+    <div
+      class="w-10 h-10 rounded-xl bg-green-50 border-2 border-green-100 flex items-center justify-center flex-shrink-0 text-lg"
+    >
       {{ getIcone(props.event.name) }}
     </div>
     <div class="flex-1 min-w-0">
@@ -37,13 +43,18 @@ function getIcone(name: string): string {
     </div>
 
     <div class="flex flex-col items-end gap-1 flex-shrink-0">
-      <span v-if="props.event.frequency" class="text-xs px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 font-bold whitespace-nowrap">
+      <span
+        v-if="props.event.frequency"
+        class="text-xs px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 font-bold whitespace-nowrap"
+      >
         {{ props.event.frequency }}
       </span>
-      <span v-if="props.event.instagram" class="text-xs px-2 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-700 font-semibold">
+      <span
+        v-if="props.event.instagram"
+        class="text-xs px-2 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-700 font-semibold"
+      >
         Instagram
       </span>
     </div>
   </component>
-
 </template>

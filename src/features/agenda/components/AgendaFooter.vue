@@ -18,7 +18,7 @@ function formatDate(iso: string): string {
       Agenda mantida pela comuniadde de João Pessoa. <br />
       Atualizado em
       <span class="font-semibold text-gray-500">
-        {{ formatDate(props.lastUpdated)}}
+        {{ formatDate(props.lastUpdated) }}
       </span>
     </p>
   </footer>

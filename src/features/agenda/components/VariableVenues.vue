@@ -25,7 +25,7 @@ defineProps<{
         class="px-4 py-3 flex justify-between items-center gap-4 transition-all"
         :class="[
           index < venues.length - 1 ? 'border-b border-amber-100' : '',
-          venue.instagram ? 'cursor-pointer hover:bg-amber-50' : ''
+          venue.instagram ? 'cursor-pointer hover:bg-amber-50' : '',
         ]"
       >
         <div>
@@ -33,10 +33,15 @@ defineProps<{
           <p class="text-xs text-gray-400">{{ venue.neighborhood }}</p>
         </div>
         <div class="flex flex-col items-end gap-1 flex-shrink-0">
-          <span class="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-800 whitespace-nowrap border border-amber-200">
+          <span
+            class="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-800 whitespace-nowrap border border-amber-200"
+          >
             {{ venue.days }}
           </span>
-          <span v-if="venue.instagram" class="text-xs px-2 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-700 font-semibold">
+          <span
+            v-if="venue.instagram"
+            class="text-xs px-2 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-700 font-semibold"
+          >
             Instagram
           </span>
         </div>
