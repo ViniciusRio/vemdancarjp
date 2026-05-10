@@ -22,9 +22,12 @@ onMounted(async () => {
       <p class="text-xs font-bold tracking-widest uppercase text-purple-600 mb-1">
         João Pessoa · PB
       </p>
-      <h1 class="text-2xl font-bold text-green-900 mb-1">
-        Vem Dançar <em class="italic text-green-500">JP</em>
-      </h1>
+      <RouterLink to="/">
+        <h1 class="text-2xl font-bold text-green-900 mb-1">
+          Vem Dançar <em class="italic text-green-500">JP</em>
+        </h1>
+      </RouterLink>
+
       <p class="text-sm text-gray-400 mb-8">Painel administrativo</p>
 
       <button

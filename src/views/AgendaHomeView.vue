@@ -41,5 +41,12 @@ const { agenda, isLoading, error } = useAgenda()
       <OtherVenues :venues="agenda.otherVenues" />
       <AgendaFooter :last-updated="agenda.lastUpdated" />
     </template>
+
+    <RouterLink
+      to="/admin/login"
+      class="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-500 text-xs font-semibold rounded-full shadow-sm hover:bg-gray-50 transition-all"
+    >
+      ⚙️ Área administrativa
+    </RouterLink>
   </div>
 </template>
