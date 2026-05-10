@@ -5,6 +5,7 @@ import { useAdminAgenda } from '@/features/agenda/composables/useAgendaAdmin'
 import EventModal from '@/features/agenda/components/EventModal.vue'
 import type { AdminEvent } from '@/features/agenda/composables/useAgendaAdmin'
 import { useRouter } from 'vue-router'
+import ConfirmModal from '@/features/agenda/components/ConfirmModal.vue'
 
 const authStore = useAuthStore()
 const { days, isLoading, error, fetchEvents, deleteEvent, saveEvent } = useAdminAgenda()
@@ -32,6 +33,27 @@ onMounted(() => {
   fetchEvents()
 })
 
+const isConfirmModalOpen = ref(false)
+const deletingEventId = ref<string | null>(null)
+
+function openDeleteModal(id: string) {
+  console.log('Abrindo modal de confirmação para deletar evento com ID:', id)
+  deletingEventId.value = id
+  isConfirmModalOpen.value = true
+}
+
+async function handleConfirmDelete() {
+  if (!deletingEventId.value) return
+  await deleteEvent(deletingEventId.value)
+  isConfirmModalOpen.value = false
+  deletingEventId.value = null
+}
+
+function handleCancelDelete() {
+  isConfirmModalOpen.value = false
+  deletingEventId.value = null
+}
+
 function openAddModal(dayId: string, dayLabel: string) {
   editingEvent.value = null
   activeDayId.value = dayId
@@ -55,23 +77,19 @@ async function handleSave(eventData: Parameters<typeof saveEvent>[0]) {
   await saveEvent(eventData)
   closeModal()
 }
-
-async function handleDelete(id: string) {
-  if (!confirm('Tem certeza que deseja remover este evento?')) return
-  await deleteEvent(id)
-}
 </script>
 
 <template>
   <div class="min-h-screen bg-green-50">
     <!-- Topbar -->
     <header class="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
+      <RouterLink to="/" class="flex items-center gap-3">
         <span class="font-bold text-green-900">Vem Dançar JP</span>
         <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700"
           >Admin</span
         >
-      </div>
+      </RouterLink>
+
       <div class="flex items-center gap-3">
         <span class="text-sm text-gray-500">{{ authStore.user?.email }}</span>
         <button
@@ -164,7 +182,7 @@ async function handleDelete(id: string) {
                 ✏️
               </button>
               <button
-                @click="handleDelete(event.id)"
+                @click="openDeleteModal(event.id)"
                 class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
               >
                 ✕
@@ -183,6 +201,13 @@ async function handleDelete(id: string) {
       :day-label="activeDayLabel"
       @close="closeModal"
       @save="handleSave"
+    />
+    <ConfirmModal
+      :is-open="isConfirmModalOpen"
+      title="Remover evento"
+      message="Tem certeza que deseja remover este evento? Esta ação não pode ser desfeita."
+      @confirm="handleConfirmDelete"
+      @cancel="handleCancelDelete"
     />
   </div>
 </template>
