@@ -110,13 +110,13 @@ async function handleSave(eventData: Parameters<typeof saveEvent>[0]) {
       <div class="flex gap-6">
         <button
           @click="activeTab = 'agenda'"
-          :class="['py-3 text-sm font-semibold border-b-2 transition-all', activeTab === 'agenda' ? 'border-green-500 text-green-700' : 'border-transparent text-gray-400 hover:text-gray-600']"
+          :class="['py-3 text-sm font-semibold border-b-2  cursor-pointer transition-all', activeTab === 'agenda' ? 'border-green-500 text-green-700' : 'border-transparent text-gray-400 hover:text-gray-600']"
         >
           Agenda
         </button>
         <button
           @click="activeTab = 'users'"
-          :class="['py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2', activeTab === 'users' ? 'border-purple-500 text-purple-700' : 'border-transparent text-gray-400 hover:text-gray-600']"
+          :class="['py-3 text-sm font-semibold border-b-2 cursor-pointer transition-all flex items-center gap-2', activeTab === 'users' ? 'border-purple-500 text-purple-700' : 'border-transparent text-gray-400 hover:text-gray-600']"
         >
           Usuários
           <span v-if="pendingAdmins.length > 0" class="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 font-bold">
@@ -159,7 +159,7 @@ async function handleSave(eventData: Parameters<typeof saveEvent>[0]) {
                   {{ day.events.length }} {{ day.events.length === 1 ? 'evento' : 'eventos' }}
                 </span>
               </div>
-              <button @click="openAddModal(day.id, day.label)" class="text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors">
+              <button @click="openAddModal(day.id, day.label)" class="text-xs cursor-pointer font-semibold text-purple-600 hover:text-purple-800 transition-colors">
                 + Adicionar
               </button>
             </div>
@@ -175,10 +175,10 @@ async function handleSave(eventData: Parameters<typeof saveEvent>[0]) {
                 <span v-if="event.frequency" class="text-xs px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-semibold">
                   {{ event.frequency }}
                 </span>
-                <button @click="openEditModal(event, day.label)" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-green-50 hover:text-green-600 transition-all">
+                <button @click="openEditModal(event, day.label)" class="w-7 h-7 cursor-pointer rounded-lg flex items-center justify-center text-gray-400 hover:bg-green-50 hover:text-green-600 transition-all">
                   ✏️
                 </button>
-                <button @click="openDeleteModal(event.id)" class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all">
+                <button @click="openDeleteModal(event.id)" class="w-7 h-7 rounded-lg cursor-pointer flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all">
                   ✕
                 </button>
               </div>
