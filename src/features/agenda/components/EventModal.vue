@@ -167,14 +167,14 @@ function handleSave() {
         <div class="flex gap-3 mt-6">
           <button
             @click="emit('close')"
-            class="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all"
+            class="flex-1 px-4 py-2 rounded-xl border border-gray-200 cursor-pointer text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all"
           >
             Cancelar
           </button>
           <button
             @click="handleSave"
             :disabled="!name || !venue || !neighborhood"
-            class="flex-1 px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            class="flex-1 px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ editingEvent ? 'Salvar alterações' : 'Adicionar evento' }}
           </button>
