@@ -28,30 +28,25 @@ export function usePendingAdmins() {
       return
     }
 
-    pendingAdmins.value = (data ?? []).map(row => ({
+    pendingAdmins.value = (data ?? []).map((row) => ({
       id: row.id,
       email: row.email,
       name: row.name,
-      requestedAt: row.requested_at
+      requestedAt: row.requested_at,
     }))
 
     isLoading.value = false
   }
 
   async function approveAdmin(id: string, email: string) {
-    const { error: insertErr } = await supabase
-      .from('admins')
-      .insert({ id, email })
+    const { error: insertErr } = await supabase.from('admins').insert({ id, email })
 
     if (insertErr) {
       error.value = insertErr.message
       return
     }
 
-    const { error: deleteErr } = await supabase
-      .from('pending_admins')
-      .delete()
-      .eq('id', id)
+    const { error: deleteErr } = await supabase.from('pending_admins').delete().eq('id', id)
 
     if (deleteErr) {
       error.value = deleteErr.message
@@ -62,10 +57,7 @@ export function usePendingAdmins() {
   }
 
   async function rejectAdmin(id: string) {
-    const { error: err } = await supabase
-      .from('pending_admins')
-      .delete()
-      .eq('id', id)
+    const { error: err } = await supabase.from('pending_admins').delete().eq('id', id)
 
     if (err) {
       error.value = err.message
@@ -81,6 +73,6 @@ export function usePendingAdmins() {
     error,
     fetchPending,
     approveAdmin,
-    rejectAdmin
+    rejectAdmin,
   }
 }
