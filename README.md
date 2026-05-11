@@ -66,6 +66,9 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_anon_key
 ```
 
+<img width="1845" height="876" alt="image" src="https://github.com/user-attachments/assets/10782a28-cbe1-4634-aec3-62f1a25debfd" />
+
+
 ## Deployment
 
 Deployment is automatic via GitHub Actions on every push to the `main` branch. Environment variables must be set under **Settings → Secrets and variables → Actions** in the repository.
