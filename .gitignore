@@ -40,3 +40,10 @@ __screenshots__/
 .env
 .env.local
 CLAUDE.md
+
+# Local / IDE settings
+.settings.local.json
+.claude/settings.local.json
+
+# Windows Zone.Identifier (NTFS metadata from downloads)
+*:Zone.Identifier
