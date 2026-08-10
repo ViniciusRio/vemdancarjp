@@ -47,3 +47,13 @@ CLAUDE.md
 
 # Windows Zone.Identifier (NTFS metadata from downloads)
 *:Zone.Identifier
+
+# Java / Gradle
+backend/.gradle
+backend/build
+*.class
+*.jar
+*.war
+
+# Docker
+.env.docker
