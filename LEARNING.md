@@ -28,6 +28,34 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Passo 3 — Flyway `V1__create_tables.sql`
+
+**Conceito:** Este passo introduziu **migrations de schema**. Uma migration é um arquivo SQL versionado que descreve uma mudança no schema do banco. O **Flyway** é a ferramenta que aplica essas migrations automaticamente no startup do Spring Boot: ele lê a pasta `db/migration`, compara com a tabela `flyway_schema_history` no banco e roda **só o que ainda não rodou** (em ordem de versão). A tabela `flyway_schema_history` funciona como um "diário" do schema — registra qual migration rodou, quando, com que checksum.
+
+Por que migrations em vez de criar tabelas manualmente no `psql`? Sem migrations, não há como saber qual versão do schema cada ambiente (dev, prod, máquina de outro dev) está rodando; não há reprodução garantida; não há ordem coordenada entre devs. Com Flyway, cada mudança de schema é um arquivo `V<n>__<descrição>.sql` comitado no repo — qualquer ambiente que suba o backend fica automaticamente no schema certo.
+
+**Regra fundamental:** nunca editar uma migration que já rodou em produção. Se precisar alterar o schema, cria-se `V2__add_xxx.sql`, `V3__alter_yyy.sql`. O Flyway recalcula o checksum e quebra se o `V1` foi alterado depois de rodado. Isso garante que o schema seja imutável e auditar.
+
+Por que `ddl-auto: validate` no Hibernate (configurado no Passo 2): o Hibernate só valida se as entidades batem com o schema do banco, **nunca cria/modifica tabelas**. Criar schema é função exclusiva do Flyway. Essa separação evita o Hibernate e o Flyway brigarem pelo schema.
+
+**Decisão deste passo — `CHECK (day_id IN (...))` na tabela `events`:** adicionei uma constraint `CHECK` que restringe `day_id` a um dos 7 dias da semana (`monday` ... `sunday`). Isso garante integridade no nível do banco — mesmo se houver um bug no backend, o Postgres rejeita valores inválidos. Alternativa seria validar só no service (camada Java), mas isso deixaria uma brecha pra inserções feitas por outros meios (scripts manuais, por exemplo). O custo de ter as duas validações (banco + service) é baixo; o ganho em integridade é alto.
+
+**Por que `BIGSERIAL` para `events`/`variable_venues`/`other_venues` e `UUID` para `admins`/`pending_admins`:** as três primeiras tabelas são CRUD administrativo — o `id` é gerado pelo Postgres (auto-incremento de inteiros). Já `admins` e `pending_admins` recebem o `id` de fora: o campo `sub` do Google ID token é um UUID, então o backend não gera esses IDs, ele os recebe. Daí `UUID PRIMARY KEY` nessas duas tabelas, sem default.
+
+**Comandos:**
+- `docker compose exec -T postgres psql -U postgres -d vemdancarjp -c "\dt"` — lista as tabelas do banco (mostra que V1 criou as 5 tabelas + a `flyway_schema_history`).
+- `docker compose exec -T postgres psql -U postgres -d vemdancarjp -c "\d events"` — descreve a tabela `events` (colunas, tipos, constraints, índices). Útil pra confirmar que o `CHECK` e os índices foram aplicados.
+- `docker compose exec -T postgres psql -U postgres -d vemdancarjp -c "SELECT * FROM flyway_schema_history;"` — mostra o histórico de migrations aplicadas (versão, descrição, checksum, quando rodou, sucesso/falha).
+
+**Erros:**
+- Nenhum. A warning `Flyway upgrade recommended: PostgreSQL 17.11 is newer than this version of Flyway` aparece porque a versão do Flyway no Spring Boot 3.3.4 testou até o Postgres 16; mas a migration rodou com sucesso — é só aviso.
+
+**Referências:**
+- `PLAN.md:433` — definição do Passo 3.
+- `PLAN.md:104-147` — SQL original da migration V1 (transcrito com o `CHECK` adicional em `day_id`).
+- `backend/src/main/resources/db/migration/V1__create_tables.sql` — a migration criada.
+- `backend/src/main/resources/application.yml:15` — `flyway.enabled: true` e `locations: classpath:db/migration`.
+
 ### Passo 2 — Setup Gradle + Spring Boot
 
 **Conceito:** Este passo montou o esqueleto do backend Java. Três peças novas precisam ser entendidas juntas:
@@ -83,3 +111,4 @@ O `@SpringBootApplication` na classe `VemdancarJpApplication` faz três coisas: 
 - `docker-compose.yml:5-15` — serviço `postgres` (imagem `postgres:17-alpine`, porta `5433:5432`, volume `postgres_data`, variáveis via `${POSTGRES_*}`).
 - `PLAN.md:384` — comando `docker compose exec postgres psql -U postgres -d vemdancarjp` usado para acessar o banco.
 - `.gitignore` — confirma que `.env` e `.env.docker` não entram no git (segredos protegidos).
+
