@@ -28,6 +28,44 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Passo 4 — Entidades + Repositórios
+
+**Conceito:** Este passo criou a ponte entre o banco relacional e o código Java. Dois conceitos centrais precisam ser entendidos juntos:
+
+1. **JPA (Java Persistence API)** é uma especificação que mapeia objetos Java a tabelas relacionais. O Spring Boot usa o **Hibernate** como implementação concreta. Cada classe anotada com `@Entity` vira uma tabela; cada campo com `@Column(name = "...")` vira uma coluna. Quando o backend sobe, o Hibernate lê essas anotações e constrói o mapeamento. Quando você chama `repository.findById(1)`, o Hibernate gera `SELECT * FROM events WHERE id = 1` por baixo dos panos, converte o resultado num objeto `Event`, e te devolve. Por que `@Column(name = "day_id")` é necessário: Java usa `camelCase` (`dayId`), Postgres usa `snake_case` (`day_id`). Sem a anotação explícita, o Hibernate poderia mapear pra coluna errada.
+
+2. **Spring Data JPA** é uma camada acima do JPA que elimina boilerplate. Em vez de escrever queries manualmente, você declara uma **interface** (sem implementação) que estende `JpaRepository<Entity, IdType>`. O Spring Data, em runtime, **gera a implementação automaticamente** baseada no nome dos métodos. Por exemplo, `findAllByOrderBySortOrderAsc()` vira `SELECT * FROM events ORDER BY sort_order ASC` — só pelo nome do método. O `JpaRepository` já vem com ~15 métodos prontos (`save`, `findById`, `findAll`, `deleteById`, `count`, etc.); declaro só os extras que não existem.
+
+**Validação de schema no startup:** a configuração `ddl-auto: validate` (Passo 2) faz o Hibernate comparar as entidades com o schema do banco quando o backend sobe. Se houver divergência (campo com nome errado, tipo incompatível), o backend **não sobe** e mostra erro. É uma rede de segurança: se a entidade e a tabela não batem, ninguém consegue rodar a app com modelo inconsistente. Neste passo, o backend subiu sem erros — as 5 entidades batem com as 5 tabelas criadas no Passo 3.
+
+**Decisão — `requestedAt` com `DEFAULT now()` do Postgres, não `@CreationTimestamp` do Hibernate:** a coluna `requested_at` no banco tem `DEFAULT now()`. Na entidade `PendingAdmin`, anotei o campo com `updatable = false` e `columnDefinition = "TIMESTAMPTZ NOT NULL DEFAULT now()"`. Isso significa: o Java não gera o timestamp; o Postgres gera quando a linha é inserida. Alternativa seria `@CreationTimestamp` (Hibernate gera o timestamp no Java), mas delegar pro banco é mais confiável — mesmo fuso, mesmo precisão, independe da JVM.
+
+**Por que Lombok `@Getter @Setter` e não `@Data`:** `@Data` gera `equals`/`hashCode` que consideram todos os campos, mas entidades JPA devem ter `hashCode`/`equals` baseados apenas no `id` (ou identidade de objeto) pra evitar problemas com lazy loading e proxies do Hibernate. Por isso uso só `@Getter @Setter`.
+
+**Por que `Long` (wrapper) e não `long` (primitivo) para `id`:** `Long` é nullable; `long` sempre tem valor (default 0). Antes de salvar, o `id` é `null` (ainda não foi gerado pelo banco). Depois de salvar, o Hibernate popula com o valor real. Com `long` primitivo, o `id` seria 0 antes de salvar — ambíguo. Mesma lógica pra `Integer` vs `int` em `sortOrder`.
+
+**Por que `UUID` (java.util.UUID) e não `String` para `id` em `Admin`/`PendingAdmin`:** o banco tem `UUID` como tipo da coluna. O Hibernate mapeia `java.util.UUID` diretamente pra `UUID` do Postgres sem conversão. Se usasse `String`, haveria conversão toda vez e nenhuma validação de formato UUID em tempo de compilação.
+
+**Por que `Instant` e não `LocalDateTime` para `requestedAt`:** o banco tem `TIMESTAMPTZ` (timestamp with time zone). `Instant` é um instante absoluto (UTC), que mapeia perfeitamente. `LocalDateTime` não tem informação de fuso — perderia o fuso do banco.
+
+**Comandos:**
+- `nohup ./gradlew bootRun > /tmp/vemdancarjp-backend.log 2>&1 &` — sobe o backend em background; os logs vão pro arquivo em vez do terminal.
+- `curl http://localhost:8080/health` — prova de vida.
+- `kill <PID>` — para o backend.
+- `grep -iE "schema valid|exception|ERROR|started VemdancarJpApplication" /tmp/vemdancarjp-backend.log` — filtra o log do startup procurando erros de validação do Hibernate ou confirmação de que a app subiu.
+
+**Erros:**
+- Nenhum. O backend subiu sem erros, confirmando que as 5 entidades (`Event`, `VariableVenue`, `OtherVenue`, `Admin`, `PendingAdmin`) batem com as 5 tabelas criadas no Passo 3.
+
+**Referências:**
+- `PLAN.md:434` — definição do Passo 4.
+- `PLAN.md:92-98` — tabela de mapeamento entre tabelas Postgres e entidades JPA.
+- `PLAN.md:100` — convenção `snake_case` no banco vs `camelCase` nas entidades.
+- `backend/src/main/java/com/vemdancarjp/entity/Event.java` — entidade com `@GeneratedValue(strategy = IDENTITY)` pra `BIGSERIAL`.
+- `backend/src/main/java/com/vemdancarjp/entity/Admin.java` — entidade com `UUID` sem `@GeneratedValue` (ID vem do Google).
+- `backend/src/main/java/com/vemdancarjp/entity/PendingAdmin.java:21` — `requestedAt` com `columnDefinition = "TIMESTAMPTZ NOT NULL DEFAULT now()"`.
+- `backend/src/main/java/com/vemdancarjp/repository/EventRepository.java` — estende `JpaRepository` com query derivada do nome do método.
+
 ### Passo 3 — Flyway `V1__create_tables.sql`
 
 **Conceito:** Este passo introduziu **migrations de schema**. Uma migration é um arquivo SQL versionado que descreve uma mudança no schema do banco. O **Flyway** é a ferramenta que aplica essas migrations automaticamente no startup do Spring Boot: ele lê a pasta `db/migration`, compara com a tabela `flyway_schema_history` no banco e roda **só o que ainda não rodou** (em ordem de versão). A tabela `flyway_schema_history` funciona como um "diário" do schema — registra qual migration rodou, quando, com que checksum.
