@@ -1,0 +1,77 @@
+:root {
+  /* bg */
+  --bg-canvas: #FFFFFF;
+  --bg-subtle: #FBFAF9;
+  --bg-muted: #F5F3F0;
+
+  /* border */
+  --border-default: #E4E0DA;
+  --border-strong: #CFC9C0;
+
+  /* text */
+  --text-primary: #1A1815;
+  --text-secondary: #6B6660;
+  --text-tertiary: #7D776E;
+  --text-inverse: #FFFFFF;
+
+  /* accent */
+  --accent-default: #1F4FD8;
+  --accent-hover: #1740B8;
+  --accent-subtle: #EDF1FE;
+
+  /* feedback */
+  --feedback-success: #17693F;
+  --feedback-warning: #8A5300;
+  --feedback-error: #B02A37;
+
+  /* space */
+  --space-50: 2px;
+  --space-100: 4px;
+  --space-200: 8px;
+  --space-300: 12px;
+  --space-400: 16px;
+  --space-500: 20px;
+  --space-600: 24px;
+  --space-700: 32px;
+  --space-800: 40px;
+  --space-900: 48px;
+  --space-1000: 64px;
+
+  /* radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* size */
+  --size-control-sm: 36px;
+  --size-control-md: 40px;
+  --size-row: 44px;
+  --size-sidebar: 240px;
+  --size-content-max: 1280px;
+  --size-prose-max: 680px;
+
+  /* font */
+  --font-family-ui: Satoshi;
+  --font-family-mono: JetBrains Mono;
+  --font-family-editorial: Instrument Serif;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-size-overline: 12px;
+  --font-size-label: 13px;
+  --font-size-compact: 14px;
+  --font-size-body: 15px;
+  --font-size-card-title: 16px;
+  --font-size-section: 20px;
+  --font-size-page: 30px;
+
+  /* lineHeight */
+  --lineHeight-overline: 16px;
+  --lineHeight-label: 18px;
+  --lineHeight-compact: 20px;
+  --lineHeight-body: 24px;
+  --lineHeight-section: 28px;
+  --lineHeight-page: 36px;
+
+}
