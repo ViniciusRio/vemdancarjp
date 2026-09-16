@@ -1,0 +1,18 @@
+{
+  "_comment": [
+    "Config para clientes MCP que só falam stdio (ex.: Claude Desktop).",
+    "Caminhos do arquivo do cliente:",
+    "  macOS   ~/Library/Application Support/Claude/claude_desktop_config.json",
+    "  Linux   ~/.config/Claude/claude_desktop_config.json",
+    "  Windows %APPDATA%/Claude/claude_desktop_config.json",
+    "Requer o servidor MCP local da Penpot rodando na porta 4401.",
+    "Alternativa remota, em uma linha:",
+    "  npx -y add-mcp -g -n penpot \"$PENPOT_MCP_URL\""
+  ],
+  "mcpServers": {
+    "penpot": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:4401/sse", "--allow-http"]
+    }
+  }
+}

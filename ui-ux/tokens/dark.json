@@ -1,0 +1,27 @@
+{
+  "bg": {
+    "canvas": { "$value": "#141311", "$type": "color", "$description": "Fundo da area de conteudo (dark)" },
+    "subtle": { "$value": "#1A1917", "$type": "color", "$description": "Cards e paineis (dark)" },
+    "muted": { "$value": "#211F1D", "$type": "color", "$description": "Sidebar e hover (dark)" }
+  },
+  "border": {
+    "default": { "$value": "#332F2B", "$type": "color", "$description": "Divisorias (dark)" },
+    "strong": { "$value": "#4A453F", "$type": "color", "$description": "Separador de secao (dark)" }
+  },
+  "text": {
+    "primary": { "$value": "#EDEAE5", "$type": "color", "$description": "Corpo e titulos (dark)" },
+    "secondary": { "$value": "#A39D95", "$type": "color", "$description": "Rotulos e legendas (dark)" },
+    "tertiary": { "$value": "#7A746C", "$type": "color", "$description": "Desabilitado (dark)" },
+    "inverse": { "$value": "#141311", "$type": "color", "$description": "Sobre acento (dark)" }
+  },
+  "accent": {
+    "default": { "$value": "#7C9BFF", "$type": "color", "$description": "Acao primaria (dark)" },
+    "hover": { "$value": "#9DB4FF", "$type": "color", "$description": "Hover do primario (dark)" },
+    "subtle": { "$value": "#1B2540", "$type": "color", "$description": "Item selecionado (dark)" }
+  },
+  "feedback": {
+    "success": { "$value": "#5DBE86", "$type": "color", "$description": "Confirmacao (dark)" },
+    "warning": { "$value": "#D9A047", "$type": "color", "$description": "Atencao (dark)" },
+    "error": { "$value": "#E8737F", "$type": "color", "$description": "Erro (dark)" }
+  }
+}

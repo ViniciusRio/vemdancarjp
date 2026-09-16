@@ -1,0 +1,96 @@
+{
+  "palette": {
+    "white": { "$value": "#FFFFFF", "$type": "color", "$description": "Branco puro" },
+    "sand-50": { "$value": "#FBFAF9", "$type": "color", "$description": "Neutro quente 50" },
+    "sand-100": { "$value": "#F5F3F0", "$type": "color", "$description": "Neutro quente 100" },
+    "sand-200": { "$value": "#E4E0DA", "$type": "color", "$description": "Neutro quente 200" },
+    "sand-300": { "$value": "#CFC9C0", "$type": "color", "$description": "Neutro quente 300" },
+    "sand-500": { "$value": "#7D776E", "$type": "color", "$description": "Neutro quente 500" },
+    "sand-600": { "$value": "#6B6660", "$type": "color", "$description": "Neutro quente 600" },
+    "sand-900": { "$value": "#1A1815", "$type": "color", "$description": "Tinta" },
+    "blue-600": { "$value": "#1F4FD8", "$type": "color", "$description": "Acento" },
+    "blue-700": { "$value": "#1740B8", "$type": "color", "$description": "Acento hover" },
+    "blue-50": { "$value": "#EDF1FE", "$type": "color", "$description": "Acento sutil" },
+    "green-700": { "$value": "#17693F", "$type": "color", "$description": "Sucesso" },
+    "amber-800": { "$value": "#8A5300", "$type": "color", "$description": "Atencao" },
+    "red-700": { "$value": "#B02A37", "$type": "color", "$description": "Erro" },
+    "chart-2": { "$value": "#B0522F", "$type": "color", "$description": "Serie 2 de grafico" },
+    "chart-3": { "$value": "#1B4B5A", "$type": "color", "$description": "Serie 3 de grafico" },
+    "chart-5": { "$value": "#5B4B8A", "$type": "color", "$description": "Serie 5 de grafico" }
+  },
+  "bg": {
+    "canvas": { "$value": "{palette.white}", "$type": "color", "$description": "Fundo da area de conteudo" },
+    "subtle": { "$value": "{palette.sand-50}", "$type": "color", "$description": "Cards e paineis" },
+    "muted": { "$value": "{palette.sand-100}", "$type": "color", "$description": "Sidebar, cabecalho de tabela, hover" }
+  },
+  "border": {
+    "default": { "$value": "{palette.sand-200}", "$type": "color", "$description": "Divisorias e bordas de card" },
+    "strong": { "$value": "{palette.sand-300}", "$type": "color", "$description": "Separador de secao" }
+  },
+  "text": {
+    "primary": { "$value": "{palette.sand-900}", "$type": "color", "$description": "Corpo e titulos" },
+    "secondary": { "$value": "{palette.sand-600}", "$type": "color", "$description": "Rotulos, legendas, placeholder" },
+    "tertiary": { "$value": "{palette.sand-500}", "$type": "color", "$description": "Desabilitado e metadados" },
+    "inverse": { "$value": "{palette.white}", "$type": "color", "$description": "Sobre acento" }
+  },
+  "accent": {
+    "default": { "$value": "{palette.blue-600}", "$type": "color", "$description": "Acao primaria, link, foco" },
+    "hover": { "$value": "{palette.blue-700}", "$type": "color", "$description": "Hover do primario" },
+    "subtle": { "$value": "{palette.blue-50}", "$type": "color", "$description": "Item selecionado, badge info" }
+  },
+  "feedback": {
+    "success": { "$value": "{palette.green-700}", "$type": "color", "$description": "Confirmacao e delta positivo" },
+    "warning": { "$value": "{palette.amber-800}", "$type": "color", "$description": "Atencao" },
+    "error": { "$value": "{palette.red-700}", "$type": "color", "$description": "Erro e delta negativo" }
+  },
+  "space": {
+    "50": { "$value": "2", "$type": "spacing", "$description": "" },
+    "100": { "$value": "4", "$type": "spacing", "$description": "" },
+    "200": { "$value": "8", "$type": "spacing", "$description": "" },
+    "300": { "$value": "12", "$type": "spacing", "$description": "" },
+    "400": { "$value": "16", "$type": "spacing", "$description": "Padrao entre elementos relacionados" },
+    "500": { "$value": "20", "$type": "spacing", "$description": "Padding de card" },
+    "600": { "$value": "24", "$type": "spacing", "$description": "Gutter do grid" },
+    "700": { "$value": "32", "$type": "spacing", "$description": "Padding lateral desktop" },
+    "800": { "$value": "40", "$type": "spacing", "$description": "" },
+    "900": { "$value": "48", "$type": "spacing", "$description": "Entre secoes" },
+    "1000": { "$value": "64", "$type": "spacing", "$description": "" }
+  },
+  "radius": {
+    "sm": { "$value": "4", "$type": "borderRadius", "$description": "Badge, input, botao" },
+    "md": { "$value": "8", "$type": "borderRadius", "$description": "Card, popover" },
+    "lg": { "$value": "12", "$type": "borderRadius", "$description": "Modal, drawer" }
+  },
+  "size": {
+    "control-sm": { "$value": "36", "$type": "sizing", "$description": "Botao compacto" },
+    "control-md": { "$value": "40", "$type": "sizing", "$description": "Botao e input padrao" },
+    "row": { "$value": "44", "$type": "sizing", "$description": "Linha de tabela" },
+    "sidebar": { "$value": "240", "$type": "sizing", "$description": "Largura da sidebar" },
+    "content-max": { "$value": "1280", "$type": "sizing", "$description": "Largura maxima de conteudo" },
+    "prose-max": { "$value": "680", "$type": "sizing", "$description": "Largura maxima de texto corrido" }
+  },
+  "font": {
+    "family-ui": { "$value": "Satoshi", "$type": "fontFamily", "$description": "UI e texto" },
+    "family-mono": { "$value": "JetBrains Mono", "$type": "fontFamily", "$description": "Numeros, codigo, IDs" },
+    "family-editorial": { "$value": "Instrument Serif", "$type": "fontFamily", "$description": "Empty states e marketing" },
+    "weight-regular": { "$value": "400", "$type": "fontWeight", "$description": "" },
+    "weight-medium": { "$value": "500", "$type": "fontWeight", "$description": "" },
+    "weight-semibold": { "$value": "600", "$type": "fontWeight", "$description": "" },
+    "weight-bold": { "$value": "700", "$type": "fontWeight", "$description": "" },
+    "size-overline": { "$value": "12", "$type": "fontSize", "$description": "Cabecalho de tabela" },
+    "size-label": { "$value": "13", "$type": "fontSize", "$description": "Rotulo e legenda" },
+    "size-compact": { "$value": "14", "$type": "fontSize", "$description": "Corpo em tabela" },
+    "size-body": { "$value": "15", "$type": "fontSize", "$description": "Corpo" },
+    "size-card-title": { "$value": "16", "$type": "fontSize", "$description": "Titulo de card" },
+    "size-section": { "$value": "20", "$type": "fontSize", "$description": "Titulo de secao" },
+    "size-page": { "$value": "30", "$type": "fontSize", "$description": "Titulo de pagina e valor de KPI" }
+  },
+  "lineHeight": {
+    "overline": { "$value": "16", "$type": "lineHeight", "$description": "" },
+    "label": { "$value": "18", "$type": "lineHeight", "$description": "" },
+    "compact": { "$value": "20", "$type": "lineHeight", "$description": "" },
+    "body": { "$value": "24", "$type": "lineHeight", "$description": "" },
+    "section": { "$value": "28", "$type": "lineHeight", "$description": "" },
+    "page": { "$value": "36", "$type": "lineHeight", "$description": "" }
+  }
+}

@@ -1,0 +1,49 @@
+// Copie para ~/.config/opencode/opencode.jsonc
+// Declara GLM 5.2 (Z.ai) e Kimi K3 (Moonshot) como providers OpenAI-compativeis,
+// para os dois aparecerem no seletor /models do OpenCode.
+// Credenciais tambem podem ser gravadas via /connect (ficam em ~/.local/share/opencode/auth.json).
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "provider": {
+    "zai": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Z.ai (GLM)",
+      "options": {
+        "baseURL": "https://api.z.ai/api/paas/v4",
+        "apiKey": "{env:ZAI_API_KEY}"
+      },
+      "models": {
+        "glm-5.2": {
+          "name": "GLM 5.2",
+          "options": { "temperature": 0.3 }
+        }
+      }
+    },
+
+    "moonshot": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Moonshot (Kimi)",
+      "options": {
+        "baseURL": "https://api.moonshot.ai/v1",
+        "apiKey": "{env:MOONSHOT_API_KEY}"
+      },
+      "models": {
+        "kimi-k3": {
+          "name": "Kimi K3",
+          "options": { "temperature": 0.3 }
+        }
+      }
+    }
+  },
+
+  // O MCP da Penpot local expoe /mcp (streamable HTTP) e /sse (legado) na porta 4401.
+  // Se usar o MCP remoto, troque a url por $PENPOT_MCP_URL.
+  "mcp": {
+    "penpot": {
+      "type": "remote",
+      "url": "http://localhost:4401/mcp",
+      "enabled": true
+    }
+  }
+}
