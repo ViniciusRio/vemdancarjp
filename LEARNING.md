@@ -28,6 +28,51 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Passo 5 — `AgendaService` + `AgendaController`
+
+**Conceito:** Este passo criou o primeiro endpoint de negócio da API: `GET /api/agenda` (público, sem auth). Três camadas precisam ser entendidas juntas:
+
+1. **Controller** (`AgendaController`) é a porta de entrada HTTP. Anotado com `@RestController` (= `@Controller` + `@ResponseBody`), mapeia `GET /api/agenda` para o método `getAgenda()`. O Spring usa o **Jackson** (incluso no `spring-boot-starter-web`) pra converter o objeto Java retornado em JSON automaticamente. O controller **não contém lógica de negócio** — só recebe a requisição, delega pro service e devolve a resposta (princípio SRP, `PLAN.md:391`).
+
+2. **Service** (`AgendaService`) é onde mora a lógica. Anotado com `@Service`, é injetado no controller via constructor. O `AgendaService` busca os 3 tipos de registro (events, variable_venues, other_venues) nos respectivos repositórios, agrupa os eventos por `day_id`, traduz os labels pra português (`monday` → `Segunda-feira`) igual ao `agendaService.ts:4-12`, e monta o `AgendaResponse`. Separar controller e service permite reusar a lógica fora de HTTP (testes, jobs, outros endpoints).
+
+3. **DTO** (Data Transfer Object) é o "contrato da API", diferente da entidade JPA. O `AgendaResponse` é um **record** Java (imutável por design) com exatamente os campos que o frontend espera — sem `id`, sem `sort_order`, sem campos internos do banco. Entidades JPA representam o banco; DTOs representam a API. Mantê-los separados evita acoplar o schema do banco ao contrato da API (`PLAN.md:403`).
+
+**Por que records e não classes com Lombok:** records são nativos do Java (desde 16), não precisam de processador de annotations, são imutáveis por design e geram constructor/getters/equals/hashCode/toString automaticamente. Para DTOs de resposta, que são criados uma vez e nunca modificados, records é a escolha idiomática moderna.
+
+**Por que `lastUpdated` é a data de hoje e não a data real da última modificação:** o schema atual não tem colunas `updated_at`/`created_at` em nenhuma tabela. O frontend atual contorna isso usando `new Date().toISOString().split('T')[0]` (`agendaService.ts:61`). O backend replica o mesmo comportamento: `LocalDate.now().toString()`. Isso significa "a agenda está atualizada até hoje", não "foi modificada em tal data".
+
+> **Débito técnico (futuro):** quando quiser que `lastUpdated` reflita a data real da última modificação, será preciso: (1) criar migration `V2__add_timestamps.sql` adicionando `updated_at TIMESTAMPTZ DEFAULT now()` nas tabelas `events`, `variable_venues`, `other_venues`; (2) fazer o `AgendaService` consultar `SELECT MAX(updated_at)` das 3 tabelas. Registrar como melhoria futura.
+
+> **Débito técnico (futuro):** criar seed estruturado. Para dados reais (pós-migração do Supabase no Passo 10), criar `V2__seed_data.sql` no Flyway contendo os dados reais exportados — vira o "backup inicial" versionado no repo. Padrão adotado pela comunidade Spring Boot + Flyway. Para testes de integração, usar `@Sql` do Spring Boot Test ou Testcontainers com datasets em YAML.
+
+**Decisão — buscar 3 tabelas sequencialmente e não em paralelo:** são 3 queries simples em tabelas pequenas (dezenas de registros). O overhead de coordenar threads com `CompletableFuture` seria maior que o ganho. Em volume real (milhares de registros), valeria paralelizar ou usar cache (caso onde Valkey/RabbitMQ entram, `PLAN.md:462`).
+
+**Refatoração — constantes extraídas do service:** após a implementação inicial, duas mudanças de design:
+
+1. **Dias da semana → enum `DayOfWeek`** (`entity/DayOfWeek.java`). Antes, `DAY_LABELS` (Map) e `DAY_ORDER` (List) eram constantes soltas no service. Agora, um enum type-safe junta `id` e `label` numa estrutura só — impossível usar um `day_id` inválido em compilação. O service itera sobre `DayOfWeek.values()` em vez de indexar um Map.
+
+2. **Cidade, título, subtítulo → `application.yml` + `@ConfigurationProperties`.** Antes, eram `private static final String` no service. Agora, vivem no `application.yml` sob o namespace `agenda:` e são vinculados ao record `AgendaProperties` via `@ConfigurationProperties(prefix = "agenda")`. A classe main tem `@ConfigurationPropertiesScan` pra escanear todos os records de config do pacote. Vantagens: mudar cidade não precisa recompilar; é tipado (não é `@Value` espalhado); é testável; prepara pra multi-cidade no futuro.
+
+**Comandos:**
+- `curl -s http://localhost:8080/api/agenda | python3 -m json.tool` — chama o endpoint e formata o JSON pra leitura. `python3 -m json.tool` indenta e organiza o JSON.
+- `curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/agenda` — retorna só o HTTP status code (útil pra scripts). `000` significa "conexão recusada" (ninguém ouvindo na porta).
+- `ps aux | grep -E "gradle|java" | grep -v grep` — lista processos Java/Gradle rodando. Útil pra confirmar se o backend está ativo e achar o PID pra `kill`.
+- `docker compose exec -T postgres psql -U postgres -d vemdancarjp << 'SQL' ... SQL` — executa múltiplos INSERTs via heredoc (bloco de texto enviado como input pro `psql`).
+- `docker compose exec -T postgres psql -U postgres -d vemdancarjp -c "DELETE FROM events; ..."` — limpa os dados mockados após o teste.
+
+**Erros:**
+- Nenhum. O endpoint retornou o JSON no shape exato esperado pelo frontend, com 7 dias da semana (mesmo vazios), eventos agrupados por `day_id` com labels em português, `variableVenues` e `otherVenues` separados, e `instagram: null` onde aplicável (bate com `string | null` do TypeScript).
+
+**Referências:**
+- `PLAN.md:435` — definição do Passo 5.
+- `PLAN.md:230-258` — shape do `AgendaResponse` alinhado com o frontend.
+- `src/services/agendaService.ts:4-12` — `DAY_LABELS` e `DAY_ORDER` originais (replicados no `AgendaService`).
+- `src/features/agenda/types/index.ts:28-36` — interface `Agenda` do frontend (espelhada no `AgendaResponse` record).
+- `backend/src/main/java/com/vemdancarjp/service/AgendaService.java` — lógica de agrupamento e tradução de labels.
+- `backend/src/main/java/com/vemdancarjp/controller/AgendaController.java` — `@RestController` + `@GetMapping`.
+- `backend/src/main/java/com/vemdancarjp/dto/response/AgendaResponse.java` — DTO record com shape da API.
+
 ### Passo 4 — Entidades + Repositórios
 
 **Conceito:** Este passo criou a ponte entre o banco relacional e o código Java. Dois conceitos centrais precisam ser entendidos juntos:

@@ -16,5 +16,10 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+agenda:
+  city: "João Pessoa, PB"
+  title: "Vem Dançar JP"
+  subtitle: "Agenda fixa semanal de Forró Pé de Serra"
+
 server:
   port: 8080
