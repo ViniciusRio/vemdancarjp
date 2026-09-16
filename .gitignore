@@ -51,6 +51,7 @@ CLAUDE.md
 # Java / Gradle
 backend/.gradle
 backend/build
+backend/bin
 *.class
 *.jar
 *.war
