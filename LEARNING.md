@@ -28,6 +28,37 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Integração local frontend ↔ backend (entre Passo 5 e Passo 6)
+
+**Conceito:** Antecipamos a conexão do frontend Vue com o backend Java (prevista formalmente no Passo 10) só pra agenda pública, pra validar ponta-a-ponta. Três conceitos importantes:
+
+1. **Proxy do Vite** (`vite.config.ts: server.proxy`) — em dev, o frontend roda na porta 5174 (Vite) e o backend na 8080 (Spring Boot). Sem proxy, o browser bloquearia requisições cross-origin (CORS). O proxy faz o Vite encaminhar qualquer `/api/*` pra `http://localhost:8080`, então o browser pensa que tá falando com o próprio Vite — sem CORS, sem configuração extra no backend. Em produção, o frontend é build estático e servido pelo mesmo host do backend (ou um nginx/CDN), então CORS deixa de ser questão.
+
+2. **Troca do `agendaService`** — antes: 3 chamadas Supabase em paralelo (`supabase.from('events').select(...)`, etc.) com agrupamento e tradução de labels no frontend. Depois: 1 única chamada `fetch('/api/agenda')` que devolve o JSON já montado pelo `AgendaService` do backend. O shape é idêntico, então stores e components não mudaram. O `API_URL` vem de `VITE_API_URL` no `.env` (vazio em dev = usa o proxy relativo; em prod aponta pra URL real).
+
+3. **Integração parcial** — só a agenda pública migrou pro backend Java. A auth (login Google, `pending_admins`, `isAdmin`) ainda usa Supabase (`authStore.ts` e `supabase.ts` intactos). Isso é intencional: a auth só migra no Passo 7. Por ora, a home vê dados do backend Java, mas o admin ainda fala com o Supabase.
+
+**Fluxo de dev local (3 serviços):**
+- Banco: `docker compose up -d` (container `postgres_db`, porta 5433)
+- Backend: `cd backend && ./gradlew bootRun` (processo nativo, porta 8080)
+- Frontend: `npm run dev` (processo nativo, porta 5173/5174)
+
+Backend e frontend rodam nativos (não no Docker) pra ter hot reload rápido. Dockerizar o backend está previsto pro Passo 10 (criar `backend/Dockerfile` multi-stage + adicionar serviço `backend` no `docker-compose.yml`). O frontend não vai pro Docker nem em produção — em prod, o Vite faz build estático (`dist/`) servido por nginx/CDN.
+
+**Comandos:**
+- `nohup npm run dev > /tmp/vemdancarjp-frontend.log 2>&1 &` — sobe o frontend em background.
+- `curl -s http://localhost:5174/api/agenda` — testa o proxy Vite → backend (deve retornar o JSON da agenda).
+- `ps aux | grep -E "gradlew|npm run dev|vite" | grep -v grep` — lista os processos nativos de backend e frontend.
+
+**Erros:**
+- Nenhum. Type-check passou, proxy funcionou, agenda renderizou no browser com os dados inseridos via Beekeeper Studio.
+
+**Referências:**
+- `vite.config.ts:22-28` — configuração do `server.proxy` encaminhando `/api` pra `http://localhost:8080`.
+- `src/services/agendaService.ts:1-16` — `fetch('/api/agenda')` substituindo as 3 chamadas Supabase.
+- `PLAN.md:440` — Passo 10 (conectar frontend) é onde a integração completa estava prevista.
+- `PLAN.md:262-314` — Dockerização do backend (ainda não implementada).
+
 ### Passo 5 — `AgendaService` + `AgendaController`
 
 **Conceito:** Este passo criou o primeiro endpoint de negócio da API: `GET /api/agenda` (público, sem auth). Três camadas precisam ser entendidas juntas:
