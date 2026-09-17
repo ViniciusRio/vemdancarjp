@@ -1,0 +1,32 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // GLM-5.2 via OpenRouter para o trabalho cotidiano.
+  // Kimi K3 é acionado pelos agentes architect/security-reviewer.
+  "model": "openrouter/z-ai/glm-5.2",
+  "small_model": "openrouter/z-ai/glm-5.2",
+
+  // Mantém o agente padrão do opencode; agenda-dev, architect e security-reviewer
+  // são selecionáveis via /agents ou disparados por comandos.
+  "default_agent": "build",
+
+  "instructions": ["AGENTS.md"],
+
+  "skills": {
+    "paths": [".opencode/skills"]
+  },
+
+  // Permissões globais (sub-agentes e build herdam; agentes customizados sobrepõem).
+  // Edição permitida por padrão; comandos destrutivos pedem aprovação.
+  "permission": {
+    "edit": "allow",
+    "bash": {
+      "*": "ask",
+      "rm *": "deny",
+      "git reset *": "ask",
+      "git push *": "ask",
+      "git force-*": "deny"
+    },
+    "skill": { "*": "allow" }
+  }
+}
