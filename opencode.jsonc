@@ -2,12 +2,11 @@
   "$schema": "https://opencode.ai/config.json",
 
   // GLM-5.2 via OpenRouter para o trabalho cotidiano.
-  // Kimi K3 é acionado pelos agentes architect/security-reviewer.
+  // Kimi K3 é usado pelos agentes architect/security-reviewer.
   "model": "openrouter/z-ai/glm-5.2",
   "small_model": "openrouter/z-ai/glm-5.2",
 
-  // Mantém o agente padrão do opencode; agenda-dev, architect e security-reviewer
-  // são selecionáveis via /agents ou disparados por comandos.
+  // Agente geral nativo; agentes especializados são selecionados quando necessário.
   "default_agent": "build",
 
   "instructions": ["AGENTS.md"],
@@ -16,17 +15,45 @@
     "paths": [".opencode/skills"]
   },
 
-  // Permissões globais (sub-agentes e build herdam; agentes customizados sobrepõem).
-  // Edição permitida por padrão; comandos destrutivos pedem aprovação.
   "permission": {
     "edit": "allow",
+
     "bash": {
       "*": "ask",
-      "rm *": "deny",
-      "git reset *": "ask",
+
+      // Comandos de inspeção sem efeitos colaterais.
+      "pwd": "allow",
+      "echo *": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "git branch*": "allow",
+      "git stash list*": "allow",
+
+      // Preparação de commit: ainda permite revisar o staged diff.
+      "git add *": "allow",
+
+      // Verificações do projeto.
+      "npm run type-check": "allow",
+      "npm run test:unit": "allow",
+      "npm run build": "allow",
+
+      // Ações com alteração relevante ou publicação.
+      "git commit *": "ask",
       "git push *": "ask",
+      "npm run lint": "ask",
+
+      // Operações destrutivas.
+      "rm *": "deny",
+      "rm -rf *": "deny",
+      "git reset *": "ask",
+      "git clean *": "deny",
       "git force-*": "deny"
     },
-    "skill": { "*": "allow" }
+
+    "skill": {
+      "*": "allow"
+    }
   }
 }
