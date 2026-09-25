@@ -2,34 +2,34 @@
 
 ## Planejar antes de construir
 
-Tarefa grande → plano primeiro, depois implementa. Evita retrabalho. Para decisões de arquitetura, use o agente `architect` (Kimi K3, somente leitura) ou o comando `/plan-feature`.
+Tarefa grande → plano primeiro, depois implementa. Evita retrabalho. Para decisões de arquitetura, use o agente `architect` (GPT Sol, somente leitura) ou o comando `/plan-feature`.
 
 ## Separar planejamento, execução e auditoria
 
 ### Tarefa simples
 
 ```
-GLM 5.2 (agenda-dev) → implementar → /verify
+GPT Luna (agenda-dev) → implementar → /verify
 ```
 
 ### Tarefa complexa de arquitetura
 
 ```
-Kimi K3 (architect)  → plano e trade-offs
-GLM 5.2 (agenda-dev) → implementação
-GLM 5.2 (agenda-dev) → testes
-Kimi K3 (architect)  → revisão final, se o risco justificar
+GPT Sol (architect)  → plano e trade-offs
+GPT Luna (agenda-dev) → implementação
+GPT Luna (agenda-dev) → testes
+GPT Sol (architect)  → revisão final, se o risco justificar
 ```
 
 ### Tarefa de segurança
 
 ```
-Kimi K3 (security-reviewer) → modelo de ameaça e auditoria
-GLM 5.2 (agenda-dev)         → correção mecânica, se simples
-Kimi K3 (security-reviewer) → revisão da correção
+GPT Sol (security-reviewer) → modelo de ameaça e auditoria
+GPT Luna (agenda-dev)       → correção mecânica, se simples
+GPT Sol (security-reviewer) → revisão da correção
 ```
 
-Não use Kimi K3 como agente que edita o projeto inteiro por longos loops. Veja `docs/AI-COST-CONTROL.md`.
+Não use GPT Sol como agente que edita o projeto inteiro por longos loops. Veja `docs/AI-COST-CONTROL.md`.
 
 ## Migração para Backend Java (WIP)
 

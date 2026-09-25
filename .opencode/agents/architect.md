@@ -1,7 +1,7 @@
 ---
 description: Planeja arquitetura, migrations e mudanças cross-feature sem editar o projeto. Somente leitura.
 mode: primary
-model: openrouter/moonshotai/kimi-k3
+model: openai/gpt-6-sol
 temperature: 0.1
 permission:
   edit: deny

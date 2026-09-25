@@ -1,7 +1,7 @@
 ---
 description: Implementa e refatora a feature agenda (Vue 3 + Supabase). Edita código, roda type-check/lint/testes.
 mode: primary
-model: openrouter/z-ai/glm-5.2
+model: openai/gpt-6-luna
 temperature: 0.2
 permission:
   edit: allow

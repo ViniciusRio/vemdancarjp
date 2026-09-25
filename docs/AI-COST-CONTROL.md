@@ -4,7 +4,7 @@ Diagnóstico real: gasta-se com **contexto**, não resposta (134k entrada vs 84 
 
 ## Regras
 
-- **R1 — Kimi K3 nunca dentro de loop de agente.** K3 custa ~$3/M entrada vs ~$0,20/M do GLM (18×). A 134k, ~$0,40/passo. Padrão: GLM-5.2 coleta achados em arquivo; K3 lê **só esse arquivo** (~8k) numa chamada curta e dá veredito. K3 só entra onde julgamento vale o preço e o contexto é enxuto (prompt 04, trade-offs, revisão final).
+- **R1 — GPT Sol nunca dentro de loop de agente.** GPT Luna coleta achados em arquivo; GPT Sol lê **só esse arquivo** numa chamada curta e dá veredito. GPT Sol só entra onde julgamento vale o custo e o contexto é enxuto (prompt 04, trade-offs, revisão final).
 - **R2 — uma sessão por tarefa.** Sessão longa é o multiplicador: no passo 30 paga-se o histórico dos 29 anteriores. `/compact` ao passar de ~50% da janela; sessão nova a cada fase do `PLAN*.md` (análise, implementação, auditoria não compartilham sessão). Olhar o % de preenchimento no sidebar antes de continuar.
 - **R3 — o que é sempre-presente tem que ser pequeno.** `AGENTS.md` é auto-injetado em toda chamada: 1.000 tokens aqui viram 30.000 numa sessão de 30 passos. Regras, não explicação; meta <2k tokens. Cite o caminho de `PLAN*.md`/`DESIGN.md` em vez de colar conteúdo. Proibido `Read` de arquivo inteiro por hábito — usar `grep -n`/`rg -n` + ler só o intervalo de linhas.
 - **R4 — proteja o cache.** 84,9% de acerto segura a conta (leitura de cache custa 0,1×–0,5× de token fresco). Cache vale por prefixo estável: não edite, no meio da sessão, arquivo que está no topo do contexto; não troque de modelo no meio (cache é por modelo+provedor); adicione contexto no fim, nunca insira no começo.
@@ -14,7 +14,7 @@ Diagnóstico real: gasta-se com **contexto**, não resposta (134k entrada vs 84 
 ## Checklist pré-sessão
 
 1. A tarefa é uma só e cabe nesta sessão?
-2. Modelo certo: mecânico → GLM-5.2 · julgamento curto e enxuto → K3 (uma chamada, arquivo de achados)?
+2. Modelo certo: mecânico → GPT Luna · julgamento curto e enxuto → GPT Sol (uma chamada, arquivo de achados)?
 3. Arquivos sempre-presentes (`AGENTS.md`) estão enxutos?
 4. O que é determinístico já virou script?
 5. Vou ler por `rg -n` + intervalo, não arquivo inteiro?
@@ -34,7 +34,7 @@ Diagnóstico real: gasta-se com **contexto**, não resposta (134k entrada vs 84 
 - Defina limite de crédito para a chave.
 - Use uma chave específica para este projeto.
 - Não compartilhe a chave entre várias automações.
-- Monitore o uso do Kimi.
+- Monitore o uso do GPT Sol.
 - Evite roteamento `nitro`/throughput quando não houver necessidade.
 - Nunca comite a chave em `.env`, histórico Git ou logs.
 

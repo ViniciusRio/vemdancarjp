@@ -1,7 +1,7 @@
 # Prompt 3 — Ler suas edições de volta e sincronizar
 
 Rode depois de você mexer no canvas com a mão. É a metade humana do loop.
-Motor sugerido: **GLM 5.2**.
+Motor sugerido: **GPT Luna**.
 
 ---
 

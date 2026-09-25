@@ -1,7 +1,7 @@
 ---
 description: Audita RLS, Google OAuth e autorização de admins/pending_admins no Supabase. Somente leitura; propõe SQL sem aplicar.
 mode: primary
-model: openrouter/moonshotai/kimi-k3
+model: openai/gpt-6-sol
 temperature: 0.1
 permission:
   edit: deny

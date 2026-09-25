@@ -54,18 +54,18 @@ Migrando de Supabase para backend Java + Spring Boot. Plano em `PLAN.md`.
 
 ## Estratégia de modelo
 
-- **Padrão:** GLM-5.2 (`openrouter/z-ai/glm-5.2`) — dia a dia.
-- **Pesado:** Kimi K3 (`openrouter/moonshotai/kimi-k3`) — arquitetura, migrations, RLS, decisões de alto risco.
-- Regra prática: comece no GLM-5.2. Se a tarefa for "projetar", "decidir", "migrar" ou "proteger", troque para Kimi K3.
+- **Padrão:** GPT Luna (`openai/gpt-6-luna`) — dia a dia.
+- **Pesado:** GPT Sol (`openai/gpt-6-sol`) — arquitetura, migrations, RLS, decisões de alto risco.
+- Regra prática: comece no GPT Luna. Se a tarefa for "projetar", "decidir", "migrar" ou "proteger", troque para GPT Sol.
 - Detalhes e fluxos ideais: `docs/AI-MODEL-STRATEGY.md`. Economia de contexto/custos: `docs/AI-COST-CONTROL.md`.
 
 ## Skills e Agentes
 
 Conhecimento especializado vive em `.opencode/skills/<nome>/SKILL.md`; modelo, modo e permissões vivem em `.opencode/agents/<nome>.md`.
 
-- **`agenda-dev`** — implementação cotidiana da feature agenda. GLM-5.2. Edita; comandos destrutivos pedem aprovação.
-- **`architect`** — arquitetura, migrations, decisões difíceis. Kimi K3. **Somente leitura.**
-- **`security-reviewer`** — RLS, auth, autorização. Kimi K3. **Somente leitura.**
+- **`agenda-dev`** — implementação cotidiana da feature agenda. GPT Luna. Edita; comandos destrutivos pedem aprovação.
+- **`architect`** — arquitetura, migrations, decisões difíceis. GPT Sol. **Somente leitura.**
+- **`security-reviewer`** — RLS, auth, autorização. GPT Sol. **Somente leitura.**
 
 Carregue a skill correspondente antes de trabalhar em sua área. Selecione o agente via `/agents` ou use os comandos `/verify` e `/plan-feature`.
 

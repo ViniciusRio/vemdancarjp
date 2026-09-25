@@ -2,7 +2,7 @@
 
 Este é o passo que tira o design do território "genérico de IA".
 Rode com 2 ou 3 referências suas (prints ou URLs de produtos cuja estética você quer).
-Motor sugerido: **Kimi K3** (leitura visual e contexto longo).
+Motor sugerido: **GPT Sol** (leitura visual e contexto longo).
 
 ---
 

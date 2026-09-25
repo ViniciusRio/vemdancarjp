@@ -1,4 +1,4 @@
-# Stack de design agêntico — Penpot + MCP + GLM 5.2 / Kimi K3
+# Stack de design agêntico — Penpot + MCP + GPT Luna / GPT Sol
 
 Canvas bidirecional entre você e seus agentes, sem depender de assento pago de vendor
 nem de modelo fechado. Você edita com a mão, o agente lê e escreve de volta,
@@ -9,7 +9,7 @@ e o contrato de marca vive em texto versionado no git.
                             |            ^
                  aplica     v            | promove decisões
                  ┌──────────────────────────────┐
-   Penpot  <---> │  agente: Kimi K3 / GLM 5.2   │ <---> código do produto
+   Penpot  <---> │  agente: GPT Sol / GPT Luna   │ <---> código do produto
    (canvas)  MCP └──────────────────────────────┘
       ^
       └── suas edições manuais
@@ -22,8 +22,8 @@ e o contrato de marca vive em texto versionado no git.
 | `DESIGN.md` | Contrato de marca. Direção limpa/editorial para dashboard SaaS. É o arquivo que o agente lê antes de qualquer coisa. |
 | `tokens/core.json` | Tokens no formato DTCG, prontos para importar no painel Tokens do Penpot. |
 | `tokens/dark.json` | Conjunto dark, para importar como segundo set/tema. |
-| `config/env.example` | Chaves e endpoints do GLM e do Kimi, com atalhos `use_glm` / `use_kimi`. |
-| `config/opencode.jsonc` | Providers GLM 5.2 e Kimi K3 no OpenCode + MCP da Penpot. |
+| `config/env.example` | Configuração de ambiente do MCP da Penpot. |
+| `config/opencode.jsonc` | Modelos GPT Luna e GPT Sol no OpenCode + MCP da Penpot. |
 | `config/mcp-stdio.json` | Config para clientes MCP que só falam stdio. |
 | `scripts/01-penpot-up.sh` | Sobe o Penpot self-hosted. |
 | `scripts/02-mcp-up.sh` | Sobe o servidor MCP local da Penpot. |
@@ -87,32 +87,9 @@ cp config/env.example config/.env.local   # preencha as chaves
 source config/.env.local
 ```
 
-**Kimi K3.** O Kimi Code CLI instala por script e autentica com `/login`
-([docs](https://www.kimi.com/code/docs/en/kimi-code-cli/guides/getting-started.html)):
-
-```bash
-curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash
-kimi          # depois: /login
-```
-
-**GLM 5.2.** Duas rotas, use a que preferir:
-
-- *Via OpenCode* — copie `config/opencode.jsonc` para `~/.config/opencode/opencode.jsonc`. Ele declara
-  `zai/glm-5.2` e `moonshot/kimi-k3` como providers OpenAI-compatíveis e já registra o MCP da Penpot.
-  Depois é `/connect` para gravar as chaves e `/models` para escolher o motor
-  ([docs](https://opencode.ai/docs/providers/)).
-- *Via endpoint Anthropic-compatível* — o GLM Coding Plan expõe uma rota que fala a Messages API, então
-  qualquer cliente estilo Claude Code aponta para lá com troca de variável de ambiente, sem alterar código
-  ([Developers Digest](https://www.developersdigest.tech/blog/glm-5-2-free-and-cheap-access-2026)).
-  O Kimi tem endpoint equivalente ([Kimi Platform](https://platform.kimi.ai/docs/guide/claude-code-kimi)).
-  É para isso que servem os atalhos `use_glm` e `use_kimi` no `env.example`:
-
-```bash
-use_glm    # motor: GLM 5.2
-use_kimi   # motor: Kimi K3
-```
-
-Trocar de modelo passa a ser trocar de chave. É a vantagem prática de não estar preso a um vendor.
+**GPT Luna e GPT Sol.** Copie `config/opencode.jsonc` para `~/.config/opencode/opencode.jsonc`, conecte
+o provider OpenAI com `/connect` e escolha os modelos com `/models` ([docs](https://opencode.ai/docs/providers/)).
+Use GPT Luna para materialização e sincronização; use GPT Sol para extração e auditoria.
 
 ## Passo 4 — Tokens no canvas
 
@@ -126,10 +103,10 @@ Repita para `tokens/dark.json` como segundo set.
 
 | Momento | Prompt | Motor sugerido |
 |---|---|---|
-| Construir foundations e componentes no canvas | `prompts/01-materializar-no-canvas.md` | GLM 5.2 |
-| Revisar o que existe contra o contrato | `prompts/02-auditar.md` | Kimi K3 |
-| Depois de você editar à mão | `prompts/03-ler-de-volta.md` | GLM 5.2 |
-| Trocar o sistema inicial pelo seu gosto real | `prompts/04-extrair-de-referencias.md` | Kimi K3 |
+| Construir foundations e componentes no canvas | `prompts/01-materializar-no-canvas.md` | GPT Luna |
+| Revisar o que existe contra o contrato | `prompts/02-auditar.md` | GPT Sol |
+| Depois de você editar à mão | `prompts/03-ler-de-volta.md` | GPT Luna |
+| Trocar o sistema inicial pelo seu gosto real | `prompts/04-extrair-de-referencias.md` | GPT Sol |
 
 Regra que sustenta o loop: **quando canvas e contrato divergem, quem decide é você.** O agente
 classifica a divergência em promover / corrigir / ignorar e espera confirmação antes de escrever.

@@ -1,13 +1,20 @@
 {
   "$schema": "https://opencode.ai/config.json",
 
-  // GLM-5.2 via OpenRouter para o trabalho cotidiano.
-  // Kimi K3 é usado pelos agentes architect/security-reviewer.
-  "model": "openrouter/z-ai/glm-5.2",
-  "small_model": "openrouter/z-ai/glm-5.2",
+  // GPT Luna para o trabalho cotidiano; delega tarefas complexas ao heavy.
+  "model": "openai/gpt-6-luna",
+  "small_model": "openai/gpt-6-luna",
 
   // Agente geral nativo; agentes especializados são selecionados quando necessário.
   "default_agent": "build",
+
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "openai/gpt-6-luna",
+      "prompt": "Você é o agente principal e deve executar diretamente a maioria das tarefas. Delegue para o agente `heavy` quando houver debugging complexo ou causa raiz incerta; a solução exigir raciocínio arquitetural; for necessário compreender muitas partes do sistema antes de alterar código; houver uma refatoração grande ou de alto risco; existirem múltiplas soluções com trade-offs importantes; ou você já tiver tentado resolver o problema sem chegar a uma solução confiável. Não delegue tarefas rotineiras como CRUDs, DTOs, mapeamentos, testes simples, pequenas correções, alterações localizadas, boilerplate ou explicações simples de código. Quando delegar, forneça ao `heavy` todo o contexto necessário e use a resposta dele para continuar a implementação. Você pode ser instruído explicitamente a usar ou não usar o `heavy`.",
+    }
+  },
 
   "instructions": ["AGENTS.md"],
 

@@ -27,14 +27,14 @@ Para templates prontos para copiar e preencher, veja `docs/ai-prompts.md`. Esta 
 
 ## Revisar segurança / RLS (Supabase)
 
-- **Objetivo:** Encontrar e corrigir lacunas de autorização; sempre emparelhe com Kimi K3 (agente `security-reviewer`).
+- **Objetivo:** Encontrar e corrigir lacunas de autorização; sempre emparelhe com GPT Sol (agente `security-reviewer`).
 - **Estrutura:** Aponte a política/migration → declare o modelo de ameaças → exija um veredito por tabela.
 - **Exemplo:**
   > Revise RLS em `events`, `variable_venues`, `other_venues`, `admins` e `pending_admins`. Para cada tabela, diga quem pode SELECT/INSERT/UPDATE/DELETE e sinalize qualquer caminho em que anon ou usuários autenticados não-admin possam mutar. Produza uma tabela com colunas `tabela | papel | privilégio | veredito | correção`.
 
 ## Planejar arquitetura / migration
 
-- **Objetivo:** Produzir um plano antes de escrever código; sempre use Kimi K3 (agente `architect` ou comando `/plan-feature`).
+- **Objetivo:** Produzir um plano antes de escrever código; sempre use GPT Sol (agente `architect` ou comando `/plan-feature`).
 - **Estrutura:** Declare a mudança → liste as áreas afetadas → peça alternativas + trade-offs → exija um plano passo a passo.
 - **Exemplo:**
   > Planeje uma migration para dividir `events` em recorrentes vs únicas sem downtime. Cubra schema, RLS, `agendaService`, `agendaStore` e a UI admin. Forneça 2 alternativas com trade-offs, depois escolha uma e produza um plano passo a passo com rollback.

@@ -1,7 +1,7 @@
 ---
-description: Planeja uma feature sem editar arquivos. Usa o agente architect (Kimi K3).
+description: Planeja uma feature sem editar arquivos. Usa o agente architect (GPT Sol).
 agent: architect
-model: openrouter/moonshotai/kimi-k3
+model: openai/gpt-6-sol
 ---
 
 Analise o pedido abaixo sem modificar arquivos. Você é somente leitura.

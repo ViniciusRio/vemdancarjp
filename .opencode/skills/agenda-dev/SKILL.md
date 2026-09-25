@@ -50,4 +50,4 @@ Código primeiro, prosa mínima. Prefira um diff ou arquivo editado a uma palest
 - Adicionar testes unitários Vitest para o acima.
 - Triagem de rotina de lint/typecheck.
 
-Escale para Kimi K3 (agente `architect` ou `security-reviewer`) apenas se a mudança cruzar fronteiras de feature ou exigir decisões de schema/RLS.
+Escale para GPT Sol (agente `architect` ou `security-reviewer`) apenas se a mudança cruzar fronteiras de feature ou exigir decisões de schema/RLS.

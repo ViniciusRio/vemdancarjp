@@ -1,7 +1,7 @@
 # Prompt 1 — Materializar o design system no canvas
 
 Use com o agente conectado ao MCP da Penpot, com um arquivo de design aberto.
-Motor sugerido: **GLM 5.2** (trabalho estrutural, muitas chamadas de ferramenta).
+Motor sugerido: **GPT Luna** (trabalho estrutural, muitas chamadas de ferramenta).
 
 ---
 

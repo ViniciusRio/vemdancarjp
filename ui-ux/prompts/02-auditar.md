@@ -2,11 +2,11 @@
 
 Rode depois de qualquer rodada de edição — sua ou do agente.
 
-**Estrutura split para economizar contexto:** a coleta é mecânica (GLM-5.2 + scripts), o veredito é julgamento (Kimi K3 lê só o arquivo de achados, ~8k tokens, não o canvas inteiro).
+**Estrutura split para economizar contexto:** a coleta é mecânica (GPT Luna + scripts), o veredito é julgamento (GPT Sol lê só o arquivo de achados, não o canvas inteiro).
 
 ---
 
-## Fase A — Coleta (GLM-5.2 + scripts determinísticos)
+## Fase A — Coleta (GPT Luna + scripts determinísticos)
 
 Você é coletor, não juiz. Não classifique severidade, não proponha correção de texto — só registre o fato bruto.
 
@@ -20,7 +20,7 @@ rg -n "green-|gray-|#[0-9a-fA-F]{3,6}" src/ > reports/raw-hardcoded-$(date +%F).
 python3 ui-ux/scripts/wcag-contrast.py ui-ux/tokens/core.json > reports/raw-contrast-$(date +%F).json
 ```
 
-### A.2. Inspecionar o canvas via MCP (GLM-5.2)
+### A.2. Inspecionar o canvas via MCP (GPT Luna)
 
 Com o Penpot + MCP de pé, percorra cada página (`Foundations`, `Componentes`). Para cada camada, registre em `reports/findings-<data>.md`:
 
@@ -43,9 +43,9 @@ Pare aqui. **Não escreva veredito, não classifique severidade.** Entregue o ar
 
 ---
 
-## Fase B — Veredito (Kimi K3, contexto curto)
+## Fase B — Veredito (GPT Sol, contexto curto)
 
-Abra uma **sessão nova** com Kimi K3. Forneça como entrada **apenas**:
+Abra uma **sessão nova** com GPT Sol. Forneça como entrada **apenas**:
 
 - `reports/findings-<data>.md` (achados brutos da Fase A)
 - `DESIGN.md` (contrato, ~9k)
@@ -68,4 +68,4 @@ Saída: `reports/audit-<data>.md`.
 
 ## Por que split
 
-K3 a 134k de contexto ≈ $0,40/passo; a 8k ≈ $0,02. Trinta passos de coleta no GLM (~$0,65) + uma chamada de veredito no K3 (~$0,02) ≈ **$0,67 total**, contra ~$12 do K3 inspecionando passo a passo. O julgamento caro fica onde vale; a coleta mecânica fica no barato.
+O julgamento pesado fica onde vale; a coleta mecânica fica no GPT Luna.
