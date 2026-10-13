@@ -2,25 +2,27 @@
 
 ## Contexto
 
-Hoje a app Vue 3 usa Supabase para auth (Google OAuth), banco (PostgreSQL gerenciado) e RLS para autorização. Este plano substitui o Supabase por um backend Java próprio, mantendo o mesmo banco PostgreSQL (agora via Docker) e assumindo controle direto de auth, autorização e CRUD.
+Hoje a app Vue 3 usa Supabase para auth (Google OAuth) e escritas administrativas, com RLS para autorização dessas escritas. A consulta pública `GET /api/agenda` já foi integrada localmente ao backend Java e seu PostgreSQL, com testes de integração; o backend ainda não tem deploy de produção. Este plano prevê a migração gradual de auth, autorização, dados e CRUD, preservando o Supabase até validar os substitutos.
 
-**Frontend permanece Vue 3 + Pinia + Vite + Tailwind v4.** Apenas a camada de service (`src/services/`) e o `authStore` trocam chamadas Supabase por chamadas HTTP ao backend Java.
+**Frontend permanece Vue 3 + Pinia + Vite + Tailwind v4.** A integração futura troca as chamadas Supabase ainda usadas por `authStore`, composables administrativos e serviços por chamadas ao backend Java; `agendaService.ts` já consulta `/api/agenda`.
 
 ## Stack
 
 - **Backend:** Java 21 + Spring Boot 3 + Gradle
 - **Banco:** PostgreSQL 17 (via Docker, porta `5433:5432`)
-- **Auth:** Spring Security + OAuth2 Resource Server (JWT) + validação de Google ID token
+- **Auth (direção provisória):** Spring Security OAuth2 Login/OIDC com sessão HTTP, cookie seguro e proteção CSRF; a autorização administrativa consulta o banco no backend
 - **Migrations:** Flyway
 - **Container:** Docker + Docker Compose
 
 ## Estrutura do Projeto
 
+A árvore abaixo é uma referência de responsabilidades para as próximas etapas, não um inventário de classes já implementadas. O contrato de sessão e os nomes das classes futuras serão fechados antes da implementação.
+
 ```
 /
-├── docker-compose.yml          # prod (Postgres + backend)
-├── docker-compose.override.yml # dev (hot reload, volumes)
-├── .env.docker
+├── docker-compose.yml          # atual: apenas PostgreSQL
+├── docker-compose.override.yml # planejado: dev (hot reload, volumes)
+├── .env.docker                 # configuração local, quando necessária
 ├── backend/
 │   ├── Dockerfile
 │   ├── .dockerignore
@@ -31,25 +33,23 @@ Hoje a app Vue 3 usa Supabase para auth (Google OAuth), banco (PostgreSQL gerenc
 │   │   ├── VemdancarJpApplication.java
 │   │   ├── config/
 │   │   │   ├── SecurityConfig.java
-│   │   │   ├── JwtConfig.java
-│   │   │   └── CorsConfig.java
+│   │   │   └── CorsConfig.java          # proposta, se a API usar outra origem
 │   │   ├── controller/
 │   │   │   ├── AgendaController.java       # GET /api/agenda (público)
-│   │   │   ├── AuthController.java          # POST /api/auth/google, /refresh
+│   │   │   ├── AuthController.java          # proposta: estado da sessão e logout
 │   │   │   ├── EventController.java         # CRUD admin
 │   │   │   ├── VariableVenueController.java
 │   │   │   ├── OtherVenueController.java
-│   │   │   └── AdminController.java         # pending_admins approve/reject
+│   │   │   └── AdminController.java         # proposta: solicitações, aprovação, rejeição e revogação
 │   │   ├── dto/
 │   │   │   ├── request/
-│   │   │   │   ├── GoogleLoginRequest.java  # { idToken: string }
 │   │   │   │   ├── EventRequest.java
 │   │   │   │   ├── VenueRequest.java
 │   │   │   │   └── PendingAdminRequest.java
 │   │   │   └── response/
 │   │   │       ├── AgendaResponse.java       # mesmo shape do Agenda do frontend
 │   │   │       ├── EventResponse.java
-│   │   │       ├── AuthResponse.java         # { accessToken, refreshToken }
+│   │   │       ├── AuthResponse.java         # proposta: estado da sessão, sem tokens próprios
 │   │   │       └── PendingAdminResponse.java
 │   │   ├── entity/
 │   │   │   ├── Event.java
@@ -68,13 +68,9 @@ Hoje a app Vue 3 usa Supabase para auth (Google OAuth), banco (PostgreSQL gerenc
 │   │   │   ├── EventService.java
 │   │   │   ├── VariableVenueService.java
 │   │   │   ├── OtherVenueService.java
-│   │   │   ├── AdminService.java             # approve/reject pending
-│   │   │   └── AuthService.java              # valida Google ID token, emite JWT
-│   │   ├── security/
-│   │   │   ├── JwtTokenProvider.java         # gera accessToken + refreshToken
-│   │   │   ├── JwtAuthenticationFilter.java
-│   │   │   ├── GoogleTokenVerifier.java      # valida Google ID token server-side
-│   │   │   └── CustomUserDetailsService.java
+│   │   │   ├── AdminService.java             # aprovação transacional e revogação
+│   │   │   └── AuthService.java              # proposta: vínculo de identidade e sessão
+│   │   ├── security/                          # proposta: consulta de aprovação por operação
 │   │   └── exception/
 │   │       ├── ResourceNotFoundException.java
 │   │       ├── UnauthorizedException.java
@@ -96,6 +92,10 @@ Hoje a app Vue 3 usa Supabase para auth (Google OAuth), banco (PostgreSQL gerenc
 | `other_venues` | `OtherVenue` | `id` (BIGINT), `name`, `neighborhood`, `instagram`, `sort_order` | `Long` |
 | `admins` | `Admin` | `id` (UUID), `email` | `UUID` |
 | `pending_admins` | `PendingAdmin` | `id` (UUID), `email`, `name`, `requested_at` | `UUID` |
+
+No fluxo atual, o frontend usa `session.user.id` do Supabase como `id` de `admins` e `pending_admins`. O Google `sub` é um identificador textual distinto; não há vínculo comprovado entre ele e esse UUID no código. Os dados e as identidades OAuth do ambiente real do Supabase precisam ser conferidos antes de migrar privilégios. Não associar contas automaticamente por email.
+
+**Alternativas para uma migration futura, ainda sem decisão:** (A) preservar os UUIDs atuais e adicionar um `google_sub` textual às tabelas existentes, com unicidade e preenchimento somente após comprovar o vínculo; (B) criar uma tabela de identidade que relacione UUID interno, Google `sub` e identificador legado Supabase, referenciada pelos estados administrativos. A alternativa A é candidata mais simples, mas a integridade entre `admins` e `pending_admins`, os dados reais e a estratégia de vínculo precisam ser avaliados antes de escrever a migration. Não alterar a V1 já aplicada.
 
 > **Convenção de nomenclatura:** o banco usa `snake_case` (`day_id`, `sort_order`); as entidades JPA usam `camelCase` (`dayId`, `sortOrder`) com `@Column(name = "day_id")` explícito em cada campo composto.
 
@@ -146,9 +146,11 @@ CREATE INDEX idx_events_day_id     ON events(day_id);
 CREATE INDEX idx_events_sort_order ON events(sort_order);
 ```
 
-> **Seed:** após criar as tabelas, inserir manualmente os registros existentes no Supabase (export via `pscopy` ou script de migração de dados). O Flyway roda apenas DDL; a migração de dados é um passo separado.
+> **Dados:** a V1 contém apenas DDL. A importação exige conferir os registros e vínculos de identidade no Supabase real, escolher a fonte de verdade de cada tabela, testar reconciliação e definir o corte de escritas. Não presumir que copiar linhas ou comparar emails preserve autorização.
 
 ## Endpoints da API
+
+Somente `GET /api/agenda` está implementado. Todos os demais endpoints abaixo são **propostas**, sujeitas à definição do contrato de sessão e à implementação conjunta de segurança e testes.
 
 ### Públicos (sem auth)
 
@@ -160,10 +162,11 @@ CREATE INDEX idx_events_sort_order ON events(sort_order);
 
 | Método | Endpoint | Descrição |
 |---|---|---|
-| `POST` | `/api/auth/google` | Recebe `{ idToken }` (Google ID token), valida, emite `{ accessToken, refreshToken }` |
-| `POST` | `/api/auth/refresh` | Recebe `{ refreshToken }`, emite novo `{ accessToken }` |
+| `GET` | `/oauth2/authorization/google` | Inicia o OAuth2 Login no backend; caminho padrão do Spring Security, a confirmar |
+| `GET` | `/api/auth/session` | Retorna o estado da sessão atual para o frontend |
+| `POST` | `/api/auth/logout` | Invalida a sessão e encerra o login local, com proteção CSRF |
 
-### Admin (protegidos — requer JWT com role `ADMIN`)
+### Admin (propostos; exigem sessão válida e aprovação verificada no backend)
 
 | Método | Endpoint | Descrição |
 |---|---|---|
@@ -180,52 +183,21 @@ CREATE INDEX idx_events_sort_order ON events(sort_order);
 | `PUT` | `/api/admin/other-venues/{id}` | Atualiza outro lugar |
 | `DELETE` | `/api/admin/other-venues/{id}` | Deleta outro lugar |
 | `GET` | `/api/admin/pending-admins` | Lista admins pendentes |
-| `POST` | `/api/admin/approve-admin/{id}` | Aprove admin (move `pending_admins` → `admins`) |
+| `POST` | `/api/admin/approve-admin/{id}` | Aprova em transação (move `pending_admins` → `admins`) |
 | `DELETE` | `/api/admin/reject-admin/{id}` | Rejeita admin (deleta de `pending_admins`) |
+| `DELETE` | `/api/admin/admins/{id}` | Revoga a aprovação de um administrador |
 
-> **Autorização:** todos os endpoints sob `/api/admin/**` exigem JWT válido **e** role `ADMIN` (verificado via `CustomUserDetailsService` consultando a tabela `admins`). O `approve-admin` e `reject-admin` também exigem `ADMIN` — um `pending_admin` **não pode** se aprovar.
+> **Autorização:** cada operação em `/api/admin/**` exige sessão autenticada e consulta server-side ao estado aprovado no banco, inclusive aprovação, rejeição e revogação. O backend não aceita role, email ou identidade enviados pelo frontend como prova de privilégio. Usuário pendente não pode aprovar a si mesmo. Ausência de sessão retorna 401; falta de aprovação retorna 403. `GET /api/agenda` permanece público, sem login.
 
-## Fluxo de Autenticação (Google OAuth → JWT próprio)
+## Fluxo de Autenticação (direção provisória: Google OIDC → sessão HTTP)
 
-```
-┌──────────┐       ┌──────────┐       ┌──────────────────┐
-│ Frontend │──────▶│  Google  │──────▶│  Backend Java    │
-│  (Vue)   │  1.   │  Sign-In │  2.   │                  │
-│          │ login │          │ idToken│                  │
-│          │  OAuth│          │       │ 3. valida idToken│
-│          │       │          │       │    via Google API│
-│          │       │          │       │ 4. consulta       │
-│          │       │          │       │    admins/pending │
-│          │◀──────│          │◀──────│ 5. emite JWT      │
-│          │       │          │       │    (access+refresh)│
-│          │ 6. armazena JWT, │       │                  │
-│          │ envia no header  │       │                  │
-│          │ Authorization    │       │                  │
-└──────────┘       └──────────┘       └──────────────────┘
-```
+1. O Vue direciona o navegador ao início do OAuth2 Login do backend. O Spring Security conduz o fluxo com Google e valida a resposta OIDC, incluindo assinatura, emissor, público e expiração do token de identidade.
+2. O backend usa o `sub` textual validado para localizar uma identidade vinculada por evidência; a aprovação administrativa é consultada no banco. Contas legadas sem vínculo comprovado não recebem privilégio automaticamente.
+3. O Spring Boot cria uma sessão HTTP e envia cookie `Secure`, `HttpOnly` e `SameSite` apropriado à origem final. O frontend não guarda JWT próprio nem refresh token.
+4. O Vue consulta o estado da sessão e envia o cookie nas chamadas à API. Operações que alteram estado exigem token CSRF; logout invalida a sessão. Sessão expirada retorna 401; usuário autenticado sem aprovação recebe 403 ao acessar a administração.
+5. Cada operação administrativa revalida a aprovação no backend para que a revogação tenha efeito sem depender de uma role gravada na sessão. Aprovação de pendência lê os dados persistidos e promove o usuário em uma transação.
 
-**Passos detalhados:**
-
-1. Usuário clica em "Entrar com Google" no frontend Vue.
-2. Frontend faz `signInWithGoogle()` usando Google Identity Services (não Supabase), recebe um **Google ID token** (`credential.idToken`).
-3. Frontend envia `POST /api/auth/google` com `{ "idToken": "<google_id_token>" }`.
-4. Backend `AuthService` chama `GoogleTokenVerifier` que valida o token via `https://oauth2.googleapis.com/tokeninfo?id_token=...` (ou `google-api-client`):
-   - Verifica `aud` (client ID da app).
-   - Verifica `iss` (`accounts.google.com` ou `https://accounts.google.com`).
-   - Verifica `exp` (não expirado).
-   - Extrai `sub` (Google user ID), `email`, `name`.
-5. Backend consulta `admins` por `id = sub` (UUID do Google):
-   - Se existe → role `ADMIN`, emite JWT com claim `role: "ADMIN"`.
-   - Se não existe, consulta `pending_admins`:
-     - Se existe → role `PENDING`, emite JWT com claim `role: "PENDING"`.
-     - Se não existe → auto-insere em `pending_admins` (igual ao comportamento atual do `authStore.ts:57`), role `PENDING`.
-   - Emite `{ accessToken (15min), refreshToken (7d) }` assinados com `HS256` ou `RS256`.
-6. Frontend armazena `accessToken` em memória (Pinia `authStore`) e `refreshToken` em `httpOnly` cookie ou `sessionStorage` (decidir).
-7. Em cada requisição autenticada, frontend envia `Authorization: Bearer <accessToken>`.
-8. `JwtAuthenticationFilter` valida o token, popula `SecurityContext` com o `Authentication` (incluindo `role`).
-9. Endpoints `/api/admin/**` bloqueiam se `role != ADMIN` via `@PreAuthorize("hasRole('ADMIN')")`.
-
-**Refresh:** quando o `accessToken` expira, frontend chama `POST /api/auth/refresh` com o `refreshToken`; backend valida e emite novo `accessToken`.
+O frontend no GitHub Pages com domínio próprio e a API em possível subdomínio têm origens diferentes. Antes de implementar cookies e CORS, confirmar o domínio efetivo, HTTPS, origens permitidas, política `SameSite` e comportamento em desenvolvimento. Esta direção substitui o desenho anterior de JWT próprio e refresh tokens, mas ainda não está implementada.
 
 ## Shape do `AgendaResponse` (alinhado com o frontend)
 
@@ -255,11 +227,13 @@ O endpoint `GET /api/agenda` deve retornar **exatamente o mesmo shape** que `age
 }
 ```
 
-O backend (`AgendaService`) faz o agrupamento por `day_id` e a tradução dos labels (`monday` → `Segunda-feira`) igual ao `agendaService.ts:4-12`. Assim o frontend só troca a URL base de `supabase.from(...)` para `fetch('/api/agenda')`.
+O backend (`AgendaService`) já faz o agrupamento por `day_id` e a tradução dos labels (`monday` → `Segunda-feira`); `src/services/agendaService.ts` já consulta `GET /api/agenda` no fluxo local. Preservar esse contrato e o acesso sem login durante as próximas etapas.
 
 ## Docker
 
-### `docker-compose.yml` (produção)
+O frontend permanece no GitHub Pages com domínio próprio. Para a API, consideram-se provisoriamente hospedagem gerenciada no Railway, possível endereço `api.vemdancarjp.com.br` e PostgreSQL persistente. Nada disso está contratado ou configurado. A escolha final de infraestrutura deve preceder a configuração de domínio, HTTPS, cookies, CORS, persistência de dados e sessões.
+
+### `docker-compose.yml` (exemplo planejado; backend ainda não configurado)
 
 ```yaml
 services:
@@ -288,7 +262,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     depends_on:
       - postgres
 
@@ -311,7 +285,7 @@ services:
     command: ["./gradlew", "bootRun"]
 ```
 
-> Em **produção**, rodar com `docker compose -f docker-compose.yml up` (sem o override) ou usar `docker compose --profile prod up`. O Dockerfile multi-stage builda o `.jar` e roda sem mounts de código.
+> Este exemplo de Docker não define a hospedagem de produção. O `docker-compose.yml` atual contém apenas PostgreSQL; serviço Java, Dockerfile e override abaixo continuam planejados.
 
 ### `backend/Dockerfile` (multi-stage)
 
@@ -357,12 +331,12 @@ SPRING_DATASOURCE_PASSWORD=postgres
 
 # Google OAuth
 GOOGLE_CLIENT_ID=<seu_client_id>
-
-# JWT
-JWT_SECRET=<chave_secreta_min_256_bits>
+GOOGLE_CLIENT_SECRET=<segredo_servidor>
 ```
 
 ### Comandos Docker
+
+Os comandos que mencionam `backend` só se aplicam após implementar o serviço planejado no Compose.
 
 ```sh
 # Rodar tudo (banco + backend) em dev
@@ -435,12 +409,12 @@ Cada item abaixo é um **Passo** numerado. Ao concluir um Passo, registre uma en
 3. **Passo 3 — Flyway `V1__create_tables.sql`** — rodar a migration e validar o schema.
 4. **Passo 4 — Entidades + Repositórios** — mapear JPA entities com `@Column(name = "...")` explícito.
 5. **Passo 5 — `AgendaService` + `AgendaController`** — endpoint público `GET /api/agenda` retornando o shape completo. Testar com `curl`.
-6. **Passo 6 — CRUD admin (Service + Controller)** — events, venues. Sem auth ainda. Testar com Postman/Insomnia.
-7. **Passo 7 — Spring Security + JWT + Google token verifier** — `SecurityConfig`, `JwtTokenProvider`, `GoogleTokenVerifier`, `AuthService`, `AuthController`. Implementar `POST /api/auth/google` e `/refresh`.
-8. **Passo 8 — `@PreAuthorize("hasRole('ADMIN')")` nos endpoints admin** — validar que pending não pode aprovar.
-9. **Passo 9 — `AdminController` (approve/reject pending)** — último, pois depende do auth estar completo.
-10. **Passo 10 — Conectar frontend** — substituir `supabase` em `agendaService.ts` por `fetch('/api/agenda')`; substituir `authStore` para usar `POST /api/auth/google` + JWT. Atualizar `.env`.
-11. **Passo 11 — Testes unitários e de integração** — `@WebMvcTest` para controllers, `@DataJpaTest` para repos, testes de segurança para `approve-admin`.
+6. **Passo 6 — Verificar identidades e planejar vínculo** — conferir, em ambiente autorizado, o vínculo real entre UUID Supabase e Google `sub`; revisar políticas RLS e dados existentes; escolher o modelo de identidade antes de criar uma migration aditiva. Não associar por email. Registrar a decisão e seus testes.
+7. **Passo 7 — OAuth2 Login, sessão e proteção inicial** — configurar Spring Security com Google OIDC, sessão HTTP, cookie seguro, CSRF e CORS conforme a origem confirmada. Restringir por padrão as futuras rotas administrativas e manter `GET /api/agenda` público. Criar testes de autenticação, 401/403, CSRF, logout, expiração e leitura pública neste passo.
+8. **Passo 8 — CRUD admin protegido** — implementar escrita de events e venues somente com sessão e aprovação verificadas no backend. Testar autorização e persistência junto de cada endpoint; não publicar CRUD administrativo sem esses testes.
+9. **Passo 9 — Gestão administrativa protegida** — implementar solicitação de acesso, listagem, aprovação transacional, rejeição e revogação. Testar usuário pendente, autoaprovação, falha parcial, revogação de sessão ativa e concorrência.
+10. **Passo 10 — Corte de dados e conexão do frontend** — definir fonte de verdade e reconciliação entre Supabase e PostgreSQL antes do corte das escritas; conectar `authStore` e composables administrativos à API por sessão e CSRF. `agendaService.ts` já consulta `/api/agenda`. Validar dados, login e agenda pública antes de retirar qualquer dependência Supabase.
+11. **Passo 11 — Verificação complementar** — ampliar testes unitários, de integração e manuais dos fluxos completos, além dos testes de segurança já exigidos nos Passos 7–9. Confirmar rollback de dados e sessão antes de desativar o Supabase.
 
 ## Comandos Úteis (Gradle)
 
@@ -467,23 +441,21 @@ Ao conectar o frontend ao backend Java, estes arquivos mudam:
 
 | Arquivo | Mudança |
 |---|---|
-| `src/services/supabase.ts` | **Remover** (não há mais cliente Supabase) |
-| `src/services/agendaService.ts` | Trocar `supabase.from('events')...` por `fetch('/api/agenda')` |
-| `src/stores/authStore.ts` | Trocar `signInWithOAuth` por Google Identity Services + `POST /api/auth/google`; armazenar JWT em memória |
-| `.env` | Remover `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; adicionar `VITE_API_URL=http://localhost:8080/api` |
-| `package.json` | Remover `@supabase/supabase-js`; adicionar Google Identity Services lib se necessário |
+| `src/services/supabase.ts` | Manter enquanto auth e escritas administrativas dependerem do Supabase; remover somente após o corte validado |
+| `src/services/agendaService.ts` | Já usa `GET /api/agenda`; preservar o contrato público e configurar apenas a origem da API quando definida |
+| `src/stores/authStore.ts` | Substituir o login Supabase por estado de sessão fornecido pelo backend; tratar 401, 403 e logout |
+| `src/composables/usePendingAdmins.ts` e composables administrativos | Substituir chamadas Supabase por operações protegidas com cookie e CSRF, após endpoints e dados estarem validados |
+| `.env` e `package.json` | Ajustar origem pública da API; manter variáveis e SDK Supabase até a validação dos substitutos; segredo Google fica apenas no backend |
 
 ## Rollback
 
-Se a migração para o backend Java falhar e for preciso voltar para Supabase:
+Antes do corte, identificar a fonte de verdade de cada tabela, obter backup e comparar os dados importados. Durante a transição, evitar escritas simultâneas sem reconciliação definida: a agenda pública já lê PostgreSQL no backend, enquanto o painel ainda escreve no Supabase.
 
-1. O frontend Vue **não é deletado** — apenas a camada de service muda. Reverter `agendaService.ts` e `authStore.ts` para a versão Supabase via `git checkout`.
-2. O `docker-compose.yml` atual (Postgres 17) permanece — pode rodar o banco localmente para desenvolvimento sem o backend Java.
-3. Os dados no Supabase cloud **não são apagados** durante a migração (são copiados). O rollback é apenas trocar a URL de service de volta para Supabase.
-4. `PLAN-VALKEY-RABBITMQ.md` fica **deferido** — não implementar Valkey/RabbitMQ nesta fase; adicionar quando houver requisito real (cache, rate-limit, mensageria).
+Se o corte falhar, interromper novas escritas no destino, reconciliar as alterações ocorridas desde o último ponto comum e só então redirecionar o frontend para o fluxo anterior. Reverter chamadas ou URL sem reconciliar dados pode perder alterações ou deixar a agenda pública divergente. Manter o Supabase e suas credenciais operacionais até validar o substituto e o procedimento de retorno. Mudanças de esquema devem ser aditivas e reversíveis sem editar a V1 aplicada.
 
 ## Decisões diferidas (fora do escopo deste plano)
 
 - **Valkey + RabbitMQ:** ver `PLAN-VALKEY-RABBITMQ.md`. Adicionar apenas quando houver problema real que eles resolvem (cache de leitura, rate-limiting, filas para notificação). Prematuro para um CRUD de 5 tabelas.
-- **Refresh token rotation / revocation:** implementar versão básica agora; adicionar denylist de refresh tokens quando houver necessidade de logout server-side.
+- **Sessões em múltiplas instâncias:** definir persistência compartilhada somente se a topologia final exigir; iniciar com uma instância é hipótese, não implantação aprovada.
+- **Modelo de identidade e vínculo legado:** decidir entre coluna `google_sub` nas tabelas existentes e tabela de identidade após verificar dados e identidades OAuth reais no Supabase.
 - **Rate limiting no endpoint público:** adicionar depois se houver abuso. Por ora, o Spring MVC + Postgres local aguenta o tráfego.
