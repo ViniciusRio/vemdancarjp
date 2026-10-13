@@ -28,6 +28,28 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Testes de integração da API de agenda (entre Passo 5 e Passo 6)
+
+**Conceito:** Um teste de integração com `@SpringBootTest`, MockMvc e Testcontainers verifica a resposta HTTP, as consultas JPA e a constraint real do PostgreSQL no mesmo fluxo. O Flyway cria o schema no banco isolado; os registros fictícios são inseridos e as tabelas da agenda são limpas antes de cada teste. Esta tarefa protege apenas a consulta pública já implementada; não conclui o Passo 11 inteiro.
+
+**Comandos:**
+- `cd backend && ./gradlew test` — executou os sete cenários com PostgreSQL via Testcontainers; resultado final: 7 testes, 0 falhas.
+- `cd backend && ./gradlew test --rerun-tasks` — executou novamente os sete testes após alinhar o JAR e os scripts do wrapper com Gradle 8.10; 0 falhas.
+- `cd backend && ./gradlew build` — compilou e empacotou o backend; resultado final: sucesso, com a tarefa `test` já atualizada pela execução anterior.
+- `gradle test --rerun-tasks` (binário local do Gradle 8.13) — forçou uma segunda execução dos sete testes; resultado: 0 falhas.
+
+**Erros:**
+- O checkout não continha `gradle-wrapper.jar`, então `./gradlew test` falhava antes da compilação → o JAR foi gerado com Gradle 8.10 e seu SHA-256 (`2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046`) conferido com o publicado pelo Gradle. Os scripts foram ajustados apenas na chamada ao JAR; as propriedades de retry foram preservadas.
+- O Testcontainers 1.19.8 gerenciado pelo Spring Boot 3.3.4 não detectou o Docker 29 local → a versão de Testcontainers foi alinhada em 1.21.4 apenas para testes.
+- Quatro asserções de texto acentuado falharam ao usar `MockHttpServletResponse#getContentAsString()` → o teste passou a entregar os bytes da resposta diretamente ao Jackson, que lê o JSON em UTF-8.
+
+**Referências:**
+- `PLAN.md` — Passo 5 define a consulta pública; Passo 11 prevê uma suíte mais ampla, fora do escopo desta tarefa.
+- `backend/build.gradle` — dependências e versão de Testcontainers para o ambiente de teste.
+- `backend/src/test/java/com/vemdancarjp/controller/AgendaControllerIntegrationTest.java` — sete cenários e isolamento dos dados.
+- `backend/src/main/resources/db/migration/V1__create_tables.sql` — schema e constraint de `day_id` verificados no PostgreSQL.
+- `https://services.gradle.org/distributions/gradle-8.10-wrapper.jar.sha256` — checksum oficial do JAR do wrapper.
+
 ### Integração local frontend ↔ backend (entre Passo 5 e Passo 6)
 
 **Conceito:** Antecipamos a conexão do frontend Vue com o backend Java (prevista formalmente no Passo 10) só pra agenda pública, pra validar ponta-a-ponta. Três conceitos importantes:
