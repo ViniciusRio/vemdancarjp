@@ -78,7 +78,8 @@ A árvore abaixo é uma referência de responsabilidades para as próximas etapa
 │   ├── src/main/resources/
 │   │   ├── application.yml
 │   │   └── db/migration/
-│   │       └── V1__create_tables.sql
+│   │       ├── V1__create_tables.sql
+│   │       └── V2__create_admin_access.sql
 │   └── src/test/java/com/vemdancarjp/
 │       └── ...
 ```
@@ -92,10 +93,11 @@ A árvore abaixo é uma referência de responsabilidades para as próximas etapa
 | `other_venues` | `OtherVenue` | `id` (BIGINT), `name`, `neighborhood`, `instagram`, `sort_order` | `Long` |
 | `admins` | `Admin` | `id` (UUID), `email` | `UUID` |
 | `pending_admins` | `PendingAdmin` | `id` (UUID), `email`, `name`, `requested_at` | `UUID` |
+| `admin_access` | `AdminAccess` | `id` (UUID), `google_sub` (texto único), `status` (`PENDING`/`APPROVED`), `requested_at`, `email`, `name` | `UUID` |
 
-Esta tabela descreve **somente o mapeamento atual da V1**, não o modelo final de autenticação. No fluxo atual, o frontend usa `session.user.id` do Supabase como `id` de `admins` e `pending_admins`. Esses UUIDs e os registros administrativos legados **não serão importados**. A nova autenticação identificará administradores e pendências pelo Google `sub` textual validado pelo backend, sem mapear UUID Supabase para `sub` nem conceder acesso por correspondência de email.
+As tabelas `admins` e `pending_admins` pertencem à V1 legada. No fluxo atual, o frontend usa `session.user.id` do Supabase como `id` dessas tabelas. Esses UUIDs e os registros administrativos legados **não serão importados**. A V2 cria `admin_access` sem alterar a V1 nem os dados da agenda. A nova autenticação deverá usar o Google `sub` textual validado pelo backend, sem mapear UUID Supabase para `sub` nem conceder acesso por correspondência de email.
 
-**Modelo futuro ainda não implementado:** adaptar `admins` e `pending_admins` para usar um identificador Google textual único, sem tabela de vínculo legado. Definir a forma exata da migration aditiva após conferir o estado do PostgreSQL e os contratos do backend; não alterar a V1 já aplicada nem presumir que seus UUIDs representam `sub`. O primeiro administrador precisa de um procedimento interno de bootstrap no backend, executado de forma controlada após validação da identidade Google, sem endpoint público de autoaprovação. Aprovação, rejeição e revogação posteriores pertencem exclusivamente ao backend.
+**Persistência implementada; autenticação e autorização pendentes:** `admin_access` concentra pendências e aprovações, com UUID interno, `google_sub` obrigatório e único, estado limitado a `PENDING`/`APPROVED`, `requested_at` obrigatório e perfil opcional. Ainda não há login Google, sessão, bootstrap, aprovação, rejeição ou revogação no backend. O primeiro administrador precisa de um procedimento interno de bootstrap, executado de forma controlada após validação da identidade Google, sem endpoint público de autoaprovação. Aprovação, rejeição e revogação posteriores pertencem exclusivamente ao backend.
 
 > **Convenção de nomenclatura:** o banco usa `snake_case` (`day_id`, `sort_order`); as entidades JPA usam `camelCase` (`dayId`, `sortOrder`) com `@Column(name = "day_id")` explícito em cada campo composto.
 
@@ -183,9 +185,9 @@ Somente `GET /api/agenda` está implementado. Todos os demais endpoints abaixo s
 | `PUT` | `/api/admin/other-venues/{id}` | Atualiza outro lugar |
 | `DELETE` | `/api/admin/other-venues/{id}` | Deleta outro lugar |
 | `GET` | `/api/admin/pending-admins` | Lista admins pendentes |
-| `POST` | `/api/admin/approve-admin/{id}` | Aprova em transação (move `pending_admins` → `admins`); formato do identificador proposto ainda a definir |
-| `DELETE` | `/api/admin/reject-admin/{id}` | Rejeita admin (deleta de `pending_admins`) |
-| `DELETE` | `/api/admin/admins/{id}` | Revoga a aprovação de um administrador |
+| `POST` | `/api/admin/approve-admin/{id}` | Aprova em transação (altera `admin_access.status` de `PENDING` para `APPROVED`); contrato do identificador ainda a definir |
+| `DELETE` | `/api/admin/reject-admin/{id}` | Rejeita solicitação pendente em `admin_access`; semântica de exclusão a definir |
+| `DELETE` | `/api/admin/admins/{id}` | Revoga aprovação em `admin_access`; semântica de exclusão a definir |
 
 > **Autorização:** cada operação em `/api/admin/**` exige sessão autenticada e consulta server-side ao estado aprovado no banco novo, inclusive aprovação, rejeição e revogação. O backend usa o `sub` obtido da identidade Google validada e não aceita role, email ou identidade enviados pelo frontend como prova de privilégio. Usuário pendente não pode aprovar a si mesmo. O bootstrap inicial é interno e controlado, sem autoaprovação pública. Ausência de sessão retorna 401; falta de aprovação retorna 403. `GET /api/agenda` permanece público, sem login.
 
@@ -195,7 +197,7 @@ Somente `GET /api/agenda` está implementado. Todos os demais endpoints abaixo s
 2. O backend usa o `sub` textual validado para consultar a nova base administrativa. Nenhuma conta ou aprovação legada do Supabase recebe privilégio automaticamente; o primeiro administrador entra por bootstrap interno controlado e os demais solicitam aprovação no backend.
 3. O Spring Boot cria uma sessão HTTP e envia cookie `Secure`, `HttpOnly` e `SameSite` apropriado à origem final. O frontend não guarda JWT próprio nem refresh token.
 4. O Vue consulta o estado da sessão e envia o cookie nas chamadas à API. Operações que alteram estado exigem token CSRF; logout invalida a sessão. Sessão expirada retorna 401; usuário autenticado sem aprovação recebe 403 ao acessar a administração.
-5. Cada operação administrativa revalida a aprovação no backend para que a revogação tenha efeito sem depender de uma role gravada na sessão. Aprovação de pendência lê os dados persistidos e promove o usuário em uma transação.
+5. Cada operação administrativa revalida a aprovação no backend para que a revogação tenha efeito sem depender de uma role gravada na sessão. A aprovação altera o estado persistido de `PENDING` para `APPROVED` em uma transação.
 
 O frontend no GitHub Pages com domínio próprio e a API em possível subdomínio têm origens diferentes. Antes de implementar cookies e CORS, confirmar o domínio efetivo, HTTPS, origens permitidas, política `SameSite` e comportamento em desenvolvimento. Esta direção substitui o desenho anterior de JWT próprio e refresh tokens, mas ainda não está implementada.
 
@@ -409,8 +411,8 @@ Cada item abaixo é um **Passo** numerado. Ao concluir um Passo, registre uma en
 3. **Passo 3 — Flyway `V1__create_tables.sql`** — rodar a migration e validar o schema.
 4. **Passo 4 — Entidades + Repositórios** — mapear JPA entities com `@Column(name = "...")` explícito.
 5. **Passo 5 — `AgendaService` + `AgendaController`** — endpoint público `GET /api/agenda` retornando o shape completo. Testar com `curl`.
-6. **Passo 6 — Planejar a nova base administrativa** — definir como `admins` e `pending_admins` passarão a identificar novos usuários pelo Google `sub` textual, sem importar UUIDs, contas, solicitações ou aprovações legadas. Planejar a migration aditiva sem editar a V1, o bootstrap interno e controlado do primeiro administrador e testes de unicidade e ausência de autoaprovação. Não associar por email. Registrar a decisão e seus testes.
-7. **Passo 7 — OAuth2 Login, sessão e proteção inicial** — configurar Spring Security com Google OIDC, sessão HTTP, cookie seguro, CSRF e CORS conforme a origem confirmada; implementar o modelo administrativo decidido no Passo 6 e o bootstrap controlado, sem endpoint público de autoaprovação. Restringir por padrão as futuras rotas administrativas e manter `GET /api/agenda` público. Criar testes de autenticação, 401/403, CSRF, logout, expiração, bootstrap e leitura pública neste passo.
+6. **Passo 6 — Planejar a nova base administrativa** — modelo de tabela única `admin_access` decidido; V2, entidade, repository e testes de persistência implementados na etapa 6C, sem importar UUIDs, contas, solicitações ou aprovações legadas. Ainda falta detalhar o bootstrap interno e controlado do primeiro administrador e os testes de ausência de autoaprovação. Não associar por email.
+7. **Passo 7 — OAuth2 Login, sessão e proteção inicial** — configurar Spring Security com Google OIDC, sessão HTTP, cookie seguro, CSRF e CORS conforme a origem confirmada; integrar `admin_access` e implementar o bootstrap controlado, sem endpoint público de autoaprovação. Restringir por padrão as futuras rotas administrativas e manter `GET /api/agenda` público. Criar testes de autenticação, 401/403, CSRF, logout, expiração, bootstrap e leitura pública neste passo.
 8. **Passo 8 — CRUD admin protegido** — implementar escrita de events e venues somente com sessão e aprovação verificadas no backend. Testar autorização e persistência junto de cada endpoint; não publicar CRUD administrativo sem esses testes.
 9. **Passo 9 — Gestão administrativa protegida** — implementar solicitação de acesso, listagem, aprovação transacional, rejeição e revogação exclusivamente no backend, usando a nova base administrativa. Testar usuário pendente, autoaprovação, falha parcial, revogação de sessão ativa e concorrência; não importar pendências ou aprovações do Supabase.
 10. **Passo 10 — Corte da agenda e conexão do frontend** — definir fonte de verdade e reconciliação de `events`, `variable_venues` e `other_venues` entre Supabase e PostgreSQL antes do corte das escritas; conectar `authStore` e composables administrativos à nova API por sessão e CSRF. `agendaService.ts` já consulta `/api/agenda`. Validar dados públicos, novo login, nova administração e agenda pública antes de retirar qualquer dependência Supabase.
@@ -457,5 +459,5 @@ Se o corte falhar, interromper novas escritas na agenda de destino, reconciliar 
 
 - **Valkey + RabbitMQ:** ver `PLAN-VALKEY-RABBITMQ.md`. Adicionar apenas quando houver problema real que eles resolvem (cache de leitura, rate-limiting, filas para notificação). Prematuro para um CRUD de 5 tabelas.
 - **Sessões em múltiplas instâncias:** definir persistência compartilhada somente se a topologia final exigir; iniciar com uma instância é hipótese, não implantação aprovada.
-- **Esquema administrativo novo:** definir a migration aditiva e o contrato dos identificadores textuais após confirmar o estado do PostgreSQL; não há vínculo legado a migrar. Detalhar o procedimento interno de bootstrap antes de disponibilizar operações administrativas.
+- **Contratos administrativos:** definir o identificador exposto nos futuros endpoints e a semântica de rejeição/revogação sobre `admin_access`. Detalhar o procedimento interno de bootstrap antes de disponibilizar operações administrativas; não há vínculo legado a migrar.
 - **Rate limiting no endpoint público:** adicionar depois se houver abuso. Por ora, o Spring MVC + Postgres local aguenta o tráfego.

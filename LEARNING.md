@@ -28,6 +28,24 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Persistência administrativa (etapa 6C do Passo 6)
+
+**Conceito:** Uma migration aditiva cria `admin_access` para solicitações e aprovações novas, sem importar ou alterar as tabelas administrativas legadas. O PostgreSQL garante unicidade do `google_sub` e limita o estado; o mapeamento JPA usa um enum e Hibernate valida o esquema ao iniciar. Login, bootstrap e autorização continuam pendentes.
+
+**Comandos:**
+- `cd backend && ./gradlew test --tests com.vemdancarjp.repository.AdminAccessPersistenceIntegrationTest` — executou os testes de constraints em PostgreSQL/Testcontainers; 4 falhas esperadas antes da V2 e sucesso após a implementação.
+- `cd backend && ./gradlew test` — executou 12 testes de integração, incluindo a consulta pública `GET /api/agenda`; 0 falhas.
+- `cd backend && ./gradlew build` — compilou e empacotou o backend; a tarefa de testes estava atualizada e o build concluiu com sucesso.
+
+**Erros:**
+- Antes da migration, os testes falharam porque a relação `admin_access` não existia → a V2 criou a tabela e as constraints exigidas.
+
+**Referências:**
+- `PLAN.md` — Passo 6 e decisão pelo novo modelo administrativo; o bootstrap permanece fora desta etapa.
+- `backend/src/main/resources/db/migration/V2__create_admin_access.sql` — tabela e constraints no PostgreSQL.
+- `backend/src/main/java/com/vemdancarjp/entity/AdminAccess.java` — mapeamento JPA da tabela.
+- `backend/src/test/java/com/vemdancarjp/repository/AdminAccessPersistenceIntegrationTest.java` — testes com PostgreSQL real.
+
 ### Testes de integração da API de agenda (entre Passo 5 e Passo 6)
 
 **Conceito:** Um teste de integração com `@SpringBootTest`, MockMvc e Testcontainers verifica a resposta HTTP, as consultas JPA e a constraint real do PostgreSQL no mesmo fluxo. O Flyway cria o schema no banco isolado; os registros fictícios são inseridos e as tabelas da agenda são limpas antes de cada teste. Esta tarefa protege apenas a consulta pública já implementada; não conclui o Passo 11 inteiro.
