@@ -28,6 +28,29 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Configuração inicial de segurança (etapa 7B do Passo 7)
+
+**Conceito:** O OAuth2 Client do Spring Security inicia o login Google somente quando client ID, client secret e URL fixa de retorno estão configurados; sem credenciais, a aplicação inicia sem login, e uma configuração parcial falha na inicialização. A cadeia permite a agenda pública, nega rotas administrativas e devolve erros JSON para falta de sessão, autorização ou CSRF. O `AccessDeniedHandler` de `exceptionHandling` também trata erros de CSRF sem personalizar `CsrfFilter`. A regra `.anyRequest().denyAll()` mantém bloqueados os futuros endpoints de sessão, token CSRF e logout até sua implementação explícita.
+
+**Comandos:**
+- `cd backend && ./gradlew test --tests com.vemdancarjp.config.SecurityConfigIntegrationTest` — verificou regras de acesso, CSRF e redirecionamento Google com credenciais fictícias.
+- `cd backend && ./gradlew test --tests com.vemdancarjp.config.SecurityConfigStartupTest` — verificou inicialização com configuração completa, ausente e parcial de OAuth2.
+- `cd backend && ./gradlew test --rerun-tasks` — executou 26 testes, incluindo agenda pública, segurança HTTP e configurações OAuth2 completas, ausentes e parciais; 0 falhas.
+- `cd backend && ./gradlew build` — compilou e empacotou o backend; sucesso.
+
+**Erros:**
+- O primeiro teste com principal OIDC simulado falhou por ausência das classes OAuth2 antes da nova dependência → o cenário de autorização passou a usar um principal de teste genérico; o início OIDC é verificado pelo redirecionamento real do Spring Security.
+- A primeira versão personalizava `CsrfFilter` por `ObjectPostProcessor` → o handler de `exceptionHandling` já é reutilizado pelo CSRF e removeu essa necessidade.
+- Um teste de inicialização isolado falhou por faltar a configuração MVC no contexto de teste → `WebMvcAutoConfiguration` e `DispatcherServletAutoConfiguration` foram incluídos; então o teste revelou que client ID sem secret iniciava o login e uma validação explícita passou a impedir isso.
+- A comparação exata de `Content-Type` ignorava `charset=UTF-8` → os testes passaram a verificar compatibilidade com JSON.
+
+**Referências:**
+- `backend/src/main/java/com/vemdancarjp/config/SecurityConfig.java` — regras, tratamento de erros e OAuth2 Login condicional.
+- `backend/src/test/java/com/vemdancarjp/config/SecurityConfigIntegrationTest.java` — testes HTTP de segurança.
+- `backend/src/test/java/com/vemdancarjp/config/SecurityConfigStartupTest.java` — testes da configuração completa, ausente e parcial.
+- `backend/build.gradle` — starter OAuth2 Client.
+- `PLAN.md` — Passo 7 e pendências após a etapa 7B.
+
 ### Persistência administrativa (etapa 6C do Passo 6)
 
 **Conceito:** Uma migration aditiva cria `admin_access` para solicitações e aprovações novas, sem importar ou alterar as tabelas administrativas legadas. O PostgreSQL garante unicidade do `google_sub` e limita o estado; o mapeamento JPA usa um enum e Hibernate valida o esquema ao iniciar. Login, bootstrap e autorização continuam pendentes.

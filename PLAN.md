@@ -152,7 +152,7 @@ CREATE INDEX idx_events_sort_order ON events(sort_order);
 
 ## Endpoints da API
 
-Somente `GET /api/agenda` está implementado. Todos os demais endpoints abaixo são **propostas**, sujeitas à definição do contrato de sessão e à implementação conjunta de segurança e testes.
+`GET /api/agenda` é o único endpoint de controller implementado. O início e o callback do OAuth2 Login são tratados pelo Spring Security quando client ID, client secret e origem fixa de retorno estão configurados. Sem credenciais Google, a aplicação inicia sem disponibilizar o login; configuração parcial falha na inicialização. Os demais endpoints abaixo são **propostas**, sujeitas à definição do contrato de sessão e à implementação conjunta de segurança e testes. A regra atual `.anyRequest().denyAll()` bloqueia inclusive os futuros endpoints de sessão, disponibilização do token CSRF e logout até que sejam implementados e liberados explicitamente.
 
 ### Públicos (sem auth)
 
@@ -164,7 +164,7 @@ Somente `GET /api/agenda` está implementado. Todos os demais endpoints abaixo s
 
 | Método | Endpoint | Descrição |
 |---|---|---|
-| `GET` | `/oauth2/authorization/google` | Inicia o OAuth2 Login no backend; caminho padrão do Spring Security, a confirmar |
+| `GET` | `/oauth2/authorization/google` | Inicia o OAuth2 Login no backend quando configurado; caminho padrão do Spring Security |
 | `GET` | `/api/auth/session` | Retorna o estado da sessão atual para o frontend |
 | `POST` | `/api/auth/logout` | Invalida a sessão e encerra o login local, com proteção CSRF |
 
@@ -199,7 +199,7 @@ Somente `GET /api/agenda` está implementado. Todos os demais endpoints abaixo s
 4. O Vue consulta o estado da sessão e envia o cookie nas chamadas à API. Operações que alteram estado exigem token CSRF; logout invalida a sessão. Sessão expirada retorna 401; usuário autenticado sem aprovação recebe 403 ao acessar a administração.
 5. Cada operação administrativa revalida a aprovação no backend para que a revogação tenha efeito sem depender de uma role gravada na sessão. A aprovação altera o estado persistido de `PENDING` para `APPROVED` em uma transação.
 
-O frontend no GitHub Pages com domínio próprio e a API em possível subdomínio têm origens diferentes. Antes de implementar cookies e CORS, confirmar o domínio efetivo, HTTPS, origens permitidas, política `SameSite` e comportamento em desenvolvimento. Esta direção substitui o desenho anterior de JWT próprio e refresh tokens, mas ainda não está implementada.
+O frontend no GitHub Pages com domínio próprio e a API em possível subdomínio têm origens diferentes. Antes de implementar cookies e CORS de produção, confirmar o domínio efetivo, HTTPS, origens permitidas, política `SameSite` e comportamento em desenvolvimento. A etapa 7B já configura o início do login OIDC, sessão HTTP necessária ao fluxo, CSRF e regras fechadas de acesso; endpoints de sessão, disponibilização do token CSRF, logout próprio, autorização por `admin_access`, integração Vue, CORS e configuração final dos cookies continuam pendentes. Esta direção substitui o desenho anterior de JWT próprio e refresh tokens.
 
 ## Shape do `AgendaResponse` (alinhado com o frontend)
 
@@ -263,8 +263,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL}
     depends_on:
       - postgres
 
@@ -332,8 +333,9 @@ SPRING_DATASOURCE_USERNAME=postgres
 SPRING_DATASOURCE_PASSWORD=postgres
 
 # Google OAuth
-GOOGLE_CLIENT_ID=<seu_client_id>
-GOOGLE_CLIENT_SECRET=<segredo_servidor>
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=<seu_client_id>
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=<segredo_servidor>
+APP_FRONTEND_URL=<origem_de_retorno_confirmada>
 ```
 
 ### Comandos Docker
@@ -412,7 +414,7 @@ Cada item abaixo é um **Passo** numerado. Ao concluir um Passo, registre uma en
 4. **Passo 4 — Entidades + Repositórios** — mapear JPA entities com `@Column(name = "...")` explícito.
 5. **Passo 5 — `AgendaService` + `AgendaController`** — endpoint público `GET /api/agenda` retornando o shape completo. Testar com `curl`.
 6. **Passo 6 — Planejar a nova base administrativa** — modelo de tabela única `admin_access` decidido; V2, entidade, repository e testes de persistência implementados na etapa 6C, sem importar UUIDs, contas, solicitações ou aprovações legadas. Ainda falta detalhar o bootstrap interno e controlado do primeiro administrador e os testes de ausência de autoaprovação. Não associar por email.
-7. **Passo 7 — OAuth2 Login, sessão e proteção inicial** — configurar Spring Security com Google OIDC, sessão HTTP, cookie seguro, CSRF e CORS conforme a origem confirmada; integrar `admin_access` e implementar o bootstrap controlado, sem endpoint público de autoaprovação. Restringir por padrão as futuras rotas administrativas e manter `GET /api/agenda` público. Criar testes de autenticação, 401/403, CSRF, logout, expiração, bootstrap e leitura pública neste passo.
+7. **Passo 7 — OAuth2 Login, sessão e proteção inicial** — etapa 7B implementou o início do Google OIDC condicionado à configuração, sessão necessária ao fluxo, CSRF, erros JSON 401/403, negação das rotas administrativas e acesso público a `GET /api/agenda`, com testes. Ainda faltam endpoint de sessão, logout próprio, consulta a `admin_access` para autorização, bootstrap controlado, cookies e CORS conforme a origem confirmada e testes de login completo, expiração e bootstrap; não há endpoint público de autoaprovação.
 8. **Passo 8 — CRUD admin protegido** — implementar escrita de events e venues somente com sessão e aprovação verificadas no backend. Testar autorização e persistência junto de cada endpoint; não publicar CRUD administrativo sem esses testes.
 9. **Passo 9 — Gestão administrativa protegida** — implementar solicitação de acesso, listagem, aprovação transacional, rejeição e revogação exclusivamente no backend, usando a nova base administrativa. Testar usuário pendente, autoaprovação, falha parcial, revogação de sessão ativa e concorrência; não importar pendências ou aprovações do Supabase.
 10. **Passo 10 — Corte da agenda e conexão do frontend** — definir fonte de verdade e reconciliação de `events`, `variable_venues` e `other_venues` entre Supabase e PostgreSQL antes do corte das escritas; conectar `authStore` e composables administrativos à nova API por sessão e CSRF. `agendaService.ts` já consulta `/api/agenda`. Validar dados públicos, novo login, nova administração e agenda pública antes de retirar qualquer dependência Supabase.
