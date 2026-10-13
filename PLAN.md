@@ -2,7 +2,7 @@
 
 ## Contexto
 
-Hoje a app Vue 3 usa Supabase para auth (Google OAuth) e escritas administrativas, com RLS para autorização dessas escritas. A consulta pública `GET /api/agenda` já foi integrada localmente ao backend Java e seu PostgreSQL, com testes de integração; o backend ainda não tem deploy de produção. Este plano prevê a migração gradual de auth, autorização, dados e CRUD, preservando o Supabase até validar os substitutos.
+Hoje a app Vue 3 usa Supabase para auth (Google OAuth) e escritas administrativas, com RLS para autorização dessas escritas. A consulta pública `GET /api/agenda` já foi integrada localmente ao backend Java e seu PostgreSQL, com testes de integração; o backend ainda não tem deploy de produção. Este plano prevê uma nova base de identidades administrativas no Java, sem importar contas ou permissões do Supabase, e a migração dos dados públicos da agenda. O Supabase permanece operacional até validar os substitutos e o corte dos dados.
 
 **Frontend permanece Vue 3 + Pinia + Vite + Tailwind v4.** A integração futura troca as chamadas Supabase ainda usadas por `authStore`, composables administrativos e serviços por chamadas ao backend Java; `agendaService.ts` já consulta `/api/agenda`.
 
@@ -69,7 +69,7 @@ A árvore abaixo é uma referência de responsabilidades para as próximas etapa
 │   │   │   ├── VariableVenueService.java
 │   │   │   ├── OtherVenueService.java
 │   │   │   ├── AdminService.java             # aprovação transacional e revogação
-│   │   │   └── AuthService.java              # proposta: vínculo de identidade e sessão
+│   │   │   └── AuthService.java              # proposta: identidade Google nova e sessão
 │   │   ├── security/                          # proposta: consulta de aprovação por operação
 │   │   └── exception/
 │   │       ├── ResourceNotFoundException.java
@@ -93,9 +93,9 @@ A árvore abaixo é uma referência de responsabilidades para as próximas etapa
 | `admins` | `Admin` | `id` (UUID), `email` | `UUID` |
 | `pending_admins` | `PendingAdmin` | `id` (UUID), `email`, `name`, `requested_at` | `UUID` |
 
-No fluxo atual, o frontend usa `session.user.id` do Supabase como `id` de `admins` e `pending_admins`. O Google `sub` é um identificador textual distinto; não há vínculo comprovado entre ele e esse UUID no código. Os dados e as identidades OAuth do ambiente real do Supabase precisam ser conferidos antes de migrar privilégios. Não associar contas automaticamente por email.
+Esta tabela descreve **somente o mapeamento atual da V1**, não o modelo final de autenticação. No fluxo atual, o frontend usa `session.user.id` do Supabase como `id` de `admins` e `pending_admins`. Esses UUIDs e os registros administrativos legados **não serão importados**. A nova autenticação identificará administradores e pendências pelo Google `sub` textual validado pelo backend, sem mapear UUID Supabase para `sub` nem conceder acesso por correspondência de email.
 
-**Alternativas para uma migration futura, ainda sem decisão:** (A) preservar os UUIDs atuais e adicionar um `google_sub` textual às tabelas existentes, com unicidade e preenchimento somente após comprovar o vínculo; (B) criar uma tabela de identidade que relacione UUID interno, Google `sub` e identificador legado Supabase, referenciada pelos estados administrativos. A alternativa A é candidata mais simples, mas a integridade entre `admins` e `pending_admins`, os dados reais e a estratégia de vínculo precisam ser avaliados antes de escrever a migration. Não alterar a V1 já aplicada.
+**Modelo futuro ainda não implementado:** adaptar `admins` e `pending_admins` para usar um identificador Google textual único, sem tabela de vínculo legado. Definir a forma exata da migration aditiva após conferir o estado do PostgreSQL e os contratos do backend; não alterar a V1 já aplicada nem presumir que seus UUIDs representam `sub`. O primeiro administrador precisa de um procedimento interno de bootstrap no backend, executado de forma controlada após validação da identidade Google, sem endpoint público de autoaprovação. Aprovação, rejeição e revogação posteriores pertencem exclusivamente ao backend.
 
 > **Convenção de nomenclatura:** o banco usa `snake_case` (`day_id`, `sort_order`); as entidades JPA usam `camelCase` (`dayId`, `sortOrder`) com `@Column(name = "day_id")` explícito em cada campo composto.
 
@@ -146,7 +146,7 @@ CREATE INDEX idx_events_day_id     ON events(day_id);
 CREATE INDEX idx_events_sort_order ON events(sort_order);
 ```
 
-> **Dados:** a V1 contém apenas DDL. A importação exige conferir os registros e vínculos de identidade no Supabase real, escolher a fonte de verdade de cada tabela, testar reconciliação e definir o corte de escritas. Não presumir que copiar linhas ou comparar emails preserve autorização.
+> **Dados:** a V1 contém apenas DDL e mostra o esquema inicial, não a futura base administrativa. Preservar e reconciliar `events`, `variable_venues` e `other_venues` na migração da agenda. Não importar `admins`, `pending_admins`, contas ou identificadores do Supabase; a nova aprovação administrativa começa no backend e não pode ser inferida de emails ou linhas legadas.
 
 ## Endpoints da API
 
@@ -183,16 +183,16 @@ Somente `GET /api/agenda` está implementado. Todos os demais endpoints abaixo s
 | `PUT` | `/api/admin/other-venues/{id}` | Atualiza outro lugar |
 | `DELETE` | `/api/admin/other-venues/{id}` | Deleta outro lugar |
 | `GET` | `/api/admin/pending-admins` | Lista admins pendentes |
-| `POST` | `/api/admin/approve-admin/{id}` | Aprova em transação (move `pending_admins` → `admins`) |
+| `POST` | `/api/admin/approve-admin/{id}` | Aprova em transação (move `pending_admins` → `admins`); formato do identificador proposto ainda a definir |
 | `DELETE` | `/api/admin/reject-admin/{id}` | Rejeita admin (deleta de `pending_admins`) |
 | `DELETE` | `/api/admin/admins/{id}` | Revoga a aprovação de um administrador |
 
-> **Autorização:** cada operação em `/api/admin/**` exige sessão autenticada e consulta server-side ao estado aprovado no banco, inclusive aprovação, rejeição e revogação. O backend não aceita role, email ou identidade enviados pelo frontend como prova de privilégio. Usuário pendente não pode aprovar a si mesmo. Ausência de sessão retorna 401; falta de aprovação retorna 403. `GET /api/agenda` permanece público, sem login.
+> **Autorização:** cada operação em `/api/admin/**` exige sessão autenticada e consulta server-side ao estado aprovado no banco novo, inclusive aprovação, rejeição e revogação. O backend usa o `sub` obtido da identidade Google validada e não aceita role, email ou identidade enviados pelo frontend como prova de privilégio. Usuário pendente não pode aprovar a si mesmo. O bootstrap inicial é interno e controlado, sem autoaprovação pública. Ausência de sessão retorna 401; falta de aprovação retorna 403. `GET /api/agenda` permanece público, sem login.
 
 ## Fluxo de Autenticação (direção provisória: Google OIDC → sessão HTTP)
 
 1. O Vue direciona o navegador ao início do OAuth2 Login do backend. O Spring Security conduz o fluxo com Google e valida a resposta OIDC, incluindo assinatura, emissor, público e expiração do token de identidade.
-2. O backend usa o `sub` textual validado para localizar uma identidade vinculada por evidência; a aprovação administrativa é consultada no banco. Contas legadas sem vínculo comprovado não recebem privilégio automaticamente.
+2. O backend usa o `sub` textual validado para consultar a nova base administrativa. Nenhuma conta ou aprovação legada do Supabase recebe privilégio automaticamente; o primeiro administrador entra por bootstrap interno controlado e os demais solicitam aprovação no backend.
 3. O Spring Boot cria uma sessão HTTP e envia cookie `Secure`, `HttpOnly` e `SameSite` apropriado à origem final. O frontend não guarda JWT próprio nem refresh token.
 4. O Vue consulta o estado da sessão e envia o cookie nas chamadas à API. Operações que alteram estado exigem token CSRF; logout invalida a sessão. Sessão expirada retorna 401; usuário autenticado sem aprovação recebe 403 ao acessar a administração.
 5. Cada operação administrativa revalida a aprovação no backend para que a revogação tenha efeito sem depender de uma role gravada na sessão. Aprovação de pendência lê os dados persistidos e promove o usuário em uma transação.
@@ -409,12 +409,12 @@ Cada item abaixo é um **Passo** numerado. Ao concluir um Passo, registre uma en
 3. **Passo 3 — Flyway `V1__create_tables.sql`** — rodar a migration e validar o schema.
 4. **Passo 4 — Entidades + Repositórios** — mapear JPA entities com `@Column(name = "...")` explícito.
 5. **Passo 5 — `AgendaService` + `AgendaController`** — endpoint público `GET /api/agenda` retornando o shape completo. Testar com `curl`.
-6. **Passo 6 — Verificar identidades e planejar vínculo** — conferir, em ambiente autorizado, o vínculo real entre UUID Supabase e Google `sub`; revisar políticas RLS e dados existentes; escolher o modelo de identidade antes de criar uma migration aditiva. Não associar por email. Registrar a decisão e seus testes.
-7. **Passo 7 — OAuth2 Login, sessão e proteção inicial** — configurar Spring Security com Google OIDC, sessão HTTP, cookie seguro, CSRF e CORS conforme a origem confirmada. Restringir por padrão as futuras rotas administrativas e manter `GET /api/agenda` público. Criar testes de autenticação, 401/403, CSRF, logout, expiração e leitura pública neste passo.
+6. **Passo 6 — Planejar a nova base administrativa** — definir como `admins` e `pending_admins` passarão a identificar novos usuários pelo Google `sub` textual, sem importar UUIDs, contas, solicitações ou aprovações legadas. Planejar a migration aditiva sem editar a V1, o bootstrap interno e controlado do primeiro administrador e testes de unicidade e ausência de autoaprovação. Não associar por email. Registrar a decisão e seus testes.
+7. **Passo 7 — OAuth2 Login, sessão e proteção inicial** — configurar Spring Security com Google OIDC, sessão HTTP, cookie seguro, CSRF e CORS conforme a origem confirmada; implementar o modelo administrativo decidido no Passo 6 e o bootstrap controlado, sem endpoint público de autoaprovação. Restringir por padrão as futuras rotas administrativas e manter `GET /api/agenda` público. Criar testes de autenticação, 401/403, CSRF, logout, expiração, bootstrap e leitura pública neste passo.
 8. **Passo 8 — CRUD admin protegido** — implementar escrita de events e venues somente com sessão e aprovação verificadas no backend. Testar autorização e persistência junto de cada endpoint; não publicar CRUD administrativo sem esses testes.
-9. **Passo 9 — Gestão administrativa protegida** — implementar solicitação de acesso, listagem, aprovação transacional, rejeição e revogação. Testar usuário pendente, autoaprovação, falha parcial, revogação de sessão ativa e concorrência.
-10. **Passo 10 — Corte de dados e conexão do frontend** — definir fonte de verdade e reconciliação entre Supabase e PostgreSQL antes do corte das escritas; conectar `authStore` e composables administrativos à API por sessão e CSRF. `agendaService.ts` já consulta `/api/agenda`. Validar dados, login e agenda pública antes de retirar qualquer dependência Supabase.
-11. **Passo 11 — Verificação complementar** — ampliar testes unitários, de integração e manuais dos fluxos completos, além dos testes de segurança já exigidos nos Passos 7–9. Confirmar rollback de dados e sessão antes de desativar o Supabase.
+9. **Passo 9 — Gestão administrativa protegida** — implementar solicitação de acesso, listagem, aprovação transacional, rejeição e revogação exclusivamente no backend, usando a nova base administrativa. Testar usuário pendente, autoaprovação, falha parcial, revogação de sessão ativa e concorrência; não importar pendências ou aprovações do Supabase.
+10. **Passo 10 — Corte da agenda e conexão do frontend** — definir fonte de verdade e reconciliação de `events`, `variable_venues` e `other_venues` entre Supabase e PostgreSQL antes do corte das escritas; conectar `authStore` e composables administrativos à nova API por sessão e CSRF. `agendaService.ts` já consulta `/api/agenda`. Validar dados públicos, novo login, nova administração e agenda pública antes de retirar qualquer dependência Supabase.
+11. **Passo 11 — Verificação complementar** — ampliar testes unitários, de integração e manuais dos fluxos completos, além dos testes de segurança já exigidos nos Passos 7–9. Confirmar rollback dos dados da agenda e do frontend, incluindo o efeito sobre contas criadas apenas na nova base administrativa, antes de desativar o Supabase.
 
 ## Comandos Úteis (Gradle)
 
@@ -449,13 +449,13 @@ Ao conectar o frontend ao backend Java, estes arquivos mudam:
 
 ## Rollback
 
-Antes do corte, identificar a fonte de verdade de cada tabela, obter backup e comparar os dados importados. Durante a transição, evitar escritas simultâneas sem reconciliação definida: a agenda pública já lê PostgreSQL no backend, enquanto o painel ainda escreve no Supabase.
+Antes do corte, identificar a fonte de verdade de `events`, `variable_venues` e `other_venues`, obter backup e comparar os dados públicos importados. Durante a transição, evitar escritas simultâneas sem reconciliação definida: a agenda pública já lê PostgreSQL no backend, enquanto o painel ainda escreve no Supabase. As tabelas administrativas legadas não são fonte de dados para importação.
 
-Se o corte falhar, interromper novas escritas no destino, reconciliar as alterações ocorridas desde o último ponto comum e só então redirecionar o frontend para o fluxo anterior. Reverter chamadas ou URL sem reconciliar dados pode perder alterações ou deixar a agenda pública divergente. Manter o Supabase e suas credenciais operacionais até validar o substituto e o procedimento de retorno. Mudanças de esquema devem ser aditivas e reversíveis sem editar a V1 aplicada.
+Se o corte falhar, interromper novas escritas na agenda de destino, reconciliar as alterações públicas ocorridas desde o último ponto comum e só então redirecionar o frontend para o fluxo anterior. Reverter chamadas ou URL sem reconciliar dados pode perder alterações ou deixar a agenda pública divergente. O retorno temporário ao login e à administração Supabase usa somente as contas e aprovações que ainda existirem lá: administradores criados apenas no backend não terão acesso legado automaticamente, e mudanças de aprovação entre as bases exigem revisão manual. Manter o Supabase operacional até validar o substituto e o procedimento de retorno. Mudanças de esquema devem ser aditivas e reversíveis sem editar a V1 aplicada.
 
 ## Decisões diferidas (fora do escopo deste plano)
 
 - **Valkey + RabbitMQ:** ver `PLAN-VALKEY-RABBITMQ.md`. Adicionar apenas quando houver problema real que eles resolvem (cache de leitura, rate-limiting, filas para notificação). Prematuro para um CRUD de 5 tabelas.
 - **Sessões em múltiplas instâncias:** definir persistência compartilhada somente se a topologia final exigir; iniciar com uma instância é hipótese, não implantação aprovada.
-- **Modelo de identidade e vínculo legado:** decidir entre coluna `google_sub` nas tabelas existentes e tabela de identidade após verificar dados e identidades OAuth reais no Supabase.
+- **Esquema administrativo novo:** definir a migration aditiva e o contrato dos identificadores textuais após confirmar o estado do PostgreSQL; não há vínculo legado a migrar. Detalhar o procedimento interno de bootstrap antes de disponibilizar operações administrativas.
 - **Rate limiting no endpoint público:** adicionar depois se houver abuso. Por ora, o Spring MVC + Postgres local aguenta o tráfego.
