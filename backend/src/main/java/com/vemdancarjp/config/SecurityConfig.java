@@ -1,5 +1,8 @@
 package com.vemdancarjp.config;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -18,6 +22,9 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.csrf.CsrfException;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.net.URI;
@@ -32,8 +39,12 @@ public class SecurityConfig {
             ObjectProvider<ClientRegistrationRepository> clientRegistrations,
             @Value("${spring.security.oauth2.client.registration.google.client-secret:}") String clientSecret,
             @Value("${APP_FRONTEND_URL:}") String frontendUrl) throws Exception {
-        AuthenticationEntryPoint unauthorized = (request, response, exception) ->
+        AuthenticationEntryPoint unauthorized = (request, response, exception) -> {
+            if (request.getRequestURI().startsWith("/api/auth/")) {
+                response.setHeader("Cache-Control", "no-store");
+            }
             writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHENTICATED");
+        };
         AccessDeniedHandler forbidden = (request, response, exception) -> {
             if (exception instanceof CsrfException) {
                 Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -48,9 +59,15 @@ public class SecurityConfig {
             writeError(response, HttpServletResponse.SC_FORBIDDEN, "FORBIDDEN");
         };
 
+        RequestMatcher logoutRoute = request -> "POST".equals(request.getMethod()) &&
+            (request.getContextPath() + "/api/auth/logout").equals(request.getRequestURI());
+
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/api/agenda").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/session").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 .requestMatchers(HttpMethod.GET, "/oauth2/authorization/google", "/login/oauth2/code/google").permitAll()
                 .requestMatchers("/api/admin/**").denyAll()
                 .anyRequest().denyAll())
@@ -60,8 +77,32 @@ public class SecurityConfig {
             .csrf(Customizer.withDefaults())
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
-            .logout(AbstractHttpConfigurer::disable)
+            .logout(logout -> logout
+                .logoutRequestMatcher(logoutRoute)
+                .invalidateHttpSession(true)
+                .clearAuthentication(true)
+                .logoutSuccessHandler((request, response, authentication) -> {
+                    response.setHeader("Cache-Control", "no-store");
+                    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                }))
             .requestCache(AbstractHttpConfigurer::disable);
+
+        http.addFilterBefore(new OncePerRequestFilter() {
+            @Override
+            protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                    FilterChain filterChain) throws ServletException, IOException {
+                if (logoutRoute.matches(request)) {
+                    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                    if (authentication == null || !authentication.isAuthenticated() ||
+                            authentication instanceof AnonymousAuthenticationToken) {
+                        unauthorized.commence(request, response,
+                            new InsufficientAuthenticationException("Authentication is required"));
+                        return;
+                    }
+                }
+                filterChain.doFilter(request, response);
+            }
+        }, LogoutFilter.class);
 
         if (clientRegistrations.getIfAvailable() != null) {
             if (clientSecret.isBlank()) {

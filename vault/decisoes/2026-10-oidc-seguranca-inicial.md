@@ -1,0 +1,32 @@
+---
+type: adr
+numero: "003"
+titulo: Iniciar Google OIDC no backend sem abrir a administração
+data: 2026-10-13
+status: aceita
+---
+
+# ADR-003: Iniciar Google OIDC no backend sem abrir a administração
+
+## Contexto
+
+O frontend ainda usa Supabase para login e escrita administrativa. Antes da etapa 7C, o backend Java precisava iniciar o fluxo Google OIDC e ainda não dispunha de autorização administrativa nem de endpoints de sessão. A etapa 7C implementou os endpoints de sessão e CSRF; a autorização administrativa continua pendente.
+
+## Decisão
+
+Usar o OAuth2 Client nativo do Spring Security quando client ID, client secret e URL fixa de retorno estiverem configurados. Sem credenciais Google, a aplicação inicia com a API administrativa fechada e sem login; configuração parcial impede a inicialização. A cadeia permite `GET /api/agenda`, protege métodos inseguros por CSRF, responde 401/403 em JSON na API e nunca concede administração nesta etapa. O tratamento de erros CSRF usa o `AccessDeniedHandler` de `exceptionHandling`, sem personalização de `CsrfFilter`.
+
+## Consequências
+
+- Não há credenciais Google no repositório nem JWT próprio no frontend.
+- A aplicação pode ser testada sem segredos reais; o início do login usa valores fictícios apenas nos testes.
+- A etapa 7C adiciona consulta da sessão OIDC pelo `sub` validado a cada requisição, token CSRF de sessão e logout local pelo Spring Security. O status `APPROVED` é apenas informado pela consulta; não libera `/api/admin/**`.
+- Bootstrap, autorização administrativa, CORS e cookies de produção continuam pendentes.
+- A regra `.anyRequest().denyAll()` continua bloqueando as rotas sem liberação explícita; a etapa 7C liberou somente sessão, CSRF e logout conforme seus contratos.
+
+## Alternativas consideradas
+
+- Manter `permitAll()` até concluir todo o login: deixaria futuros caminhos de escrita expostos durante a migração.
+- Exigir credenciais reais em todos os ambientes: impediria iniciar e testar a aplicação sem segredos.
+
+Veja também: [[decisoes/2026-10-modelo-admin-access]], `PLAN.md`.

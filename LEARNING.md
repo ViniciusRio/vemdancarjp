@@ -28,6 +28,28 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Sessão OIDC, CSRF e logout (etapa 7C do Passo 7)
+
+**Conceito:** A sessão informa `NONE`, `PENDING` ou `APPROVED` após consultar `admin_access` pelo `sub` do principal OIDC em cada requisição; email e demais dados pessoais não entram na resposta. O CSRF padrão do Spring Security guarda o token na sessão HTTP e aceita `X-CSRF-TOKEN`. O logout nativo só processa sessão autenticada com token válido, invalida a sessão e devolve 204; a aprovação ainda não concede acesso a `/api/admin/**`. Como o `LogoutFilter` precede a autorização de rotas, um filtro anterior exige autenticação no POST de logout; o matcher identifica somente método e caminho.
+
+**Comandos:**
+- `cd backend && ./gradlew test --tests com.vemdancarjp.config.AuthEndpointsIntegrationTest` — executou seis cenários HTTP com MockMvc e PostgreSQL/Testcontainers; sucesso após os ajustes.
+- `cd backend && ./gradlew test --rerun-tasks` — após a revisão, executou 34 testes em cinco suítes; 0 falhas.
+- `cd backend && ./gradlew build` — compilou e empacotou o backend; sucesso.
+- `git diff --check` — não encontrou erros de whitespace no diff rastreado.
+
+**Erros:**
+- A primeira tentativa de executar o teste referenciou o caminho errado e não encontrou a classe → o arquivo foi criado em `backend/src/test` e o teste foi executado novamente.
+- Os novos testes falharam antes da implementação dos endpoints, confirmando os contratos ausentes.
+- O primeiro matcher de logout usou `servletPath`, que veio vazio no MockMvc e resultou em 404 → passou a comparar o URI da requisição; os testes de logout passaram.
+- Ao separar a rota da autenticação no matcher, um POST anônimo com CSRF válido passou a receber 204 → um filtro anterior ao `LogoutFilter` passou a devolver 401 sem invalidar a sessão anônima; testes confirmaram também a resposta 401 ao reutilizar a sessão invalidada após o logout.
+
+**Referências:**
+- `backend/src/main/java/com/vemdancarjp/config/SecurityConfig.java` — regras da API e logout nativo.
+- `backend/src/main/java/com/vemdancarjp/controller/AuthController.java` — estado da sessão e token CSRF.
+- `backend/src/test/java/com/vemdancarjp/config/AuthEndpointsIntegrationTest.java` — contratos HTTP e leitura atual do banco.
+- `PLAN.md` — escopo e pendências do Passo 7.
+
 ### Configuração inicial de segurança (etapa 7B do Passo 7)
 
 **Conceito:** O OAuth2 Client do Spring Security inicia o login Google somente quando client ID, client secret e URL fixa de retorno estão configurados; sem credenciais, a aplicação inicia sem login, e uma configuração parcial falha na inicialização. A cadeia permite a agenda pública, nega rotas administrativas e devolve erros JSON para falta de sessão, autorização ou CSRF. O `AccessDeniedHandler` de `exceptionHandling` também trata erros de CSRF sem personalizar `CsrfFilter`. A regra `.anyRequest().denyAll()` mantém bloqueados os futuros endpoints de sessão, token CSRF e logout até sua implementação explícita.
