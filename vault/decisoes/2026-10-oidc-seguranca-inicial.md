@@ -21,7 +21,8 @@ Usar o OAuth2 Client nativo do Spring Security quando client ID, client secret e
 - Não há credenciais Google no repositório nem JWT próprio no frontend.
 - A aplicação pode ser testada sem segredos reais; o início do login usa valores fictícios apenas nos testes.
 - A etapa 7C adiciona consulta da sessão OIDC pelo `sub` validado a cada requisição, token CSRF de sessão e logout local pelo Spring Security. O status `APPROVED` é apenas informado pela consulta; não libera `/api/admin/**`.
-- Bootstrap, autorização administrativa, CORS e cookies de produção continuam pendentes.
+- A etapa 7D.1 adiciona uma política isolada que exige autenticação OIDC da inscrição Google com emissor esperado e relê `admin_access` pelo `sub` a cada avaliação. Essa política ainda não está ligada à cadeia HTTP; `/api/admin/**` permanece em `denyAll`, inclusive para `APPROVED`.
+- Bootstrap, aplicação da autorização nas operações administrativas, CORS e cookies de produção continuam pendentes.
 - A regra `.anyRequest().denyAll()` continua bloqueando as rotas sem liberação explícita; a etapa 7C liberou somente sessão, CSRF e logout conforme seus contratos.
 
 ## Alternativas consideradas

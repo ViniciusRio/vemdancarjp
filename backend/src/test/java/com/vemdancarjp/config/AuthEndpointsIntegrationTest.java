@@ -7,12 +7,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,6 +48,7 @@ class AuthEndpointsIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired ObjectMapper objectMapper;
+    @Autowired AdminAccessAuthorizationManager adminAccessAuthorizationManager;
     @BeforeEach void cleanAccess() { jdbcTemplate.update("DELETE FROM admin_access"); }
 
     @Test void anonymousSessionIsUnauthorizedWithoutCaching() throws Exception {
@@ -132,13 +135,22 @@ class AuthEndpointsIntegrationTest {
 
     @Test void approvedSessionCannotAccessAdminAndAgendaIsPublic() throws Exception {
         insertAccess("subject-a", "APPROVED", "person@example.test");
-        mockMvc.perform(get("/api/admin/events").session(oidcSession("subject-a", "person@example.test")))
-            .andExpect(status().isForbidden());
+        MockHttpSession session = oidcSession("subject-a", "person@example.test");
+        SecurityContext context = (SecurityContext) session.getAttribute(SPRING_SECURITY_CONTEXT_KEY);
+        assertThat(adminAccessAuthorizationManager.check(context::getAuthentication,
+            new RequestAuthorizationContext(new MockHttpServletRequest("GET", "/api/admin/events")))
+            .isGranted()).isTrue();
+        String csrfToken = token(mockMvc.perform(get("/api/auth/csrf").session(session)).andReturn());
+        mockMvc.perform(get("/api/admin/events").session(session))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("FORBIDDEN"));
+        mockMvc.perform(post("/api/admin/events").session(session).header("X-CSRF-TOKEN", csrfToken))
+            .andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("FORBIDDEN"));
         mockMvc.perform(get("/api/agenda")).andExpect(status().isOk());
     }
 
     private MockHttpSession oidcSession(String sub, String email) {
-        OidcIdToken idToken = new OidcIdToken("test-id-token", Instant.now(), Instant.now().plusSeconds(3600), Map.of("sub", sub, "email", email));
+        OidcIdToken idToken = new OidcIdToken("test-id-token", Instant.now(), Instant.now().plusSeconds(3600),
+            Map.of("sub", sub, "iss", "https://accounts.google.com", "email", email));
         DefaultOidcUser principal = new DefaultOidcUser(List.of(), idToken);
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(new OAuth2AuthenticationToken(principal, List.of(), "google"));

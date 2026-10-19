@@ -28,6 +28,28 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Política isolada de autorização administrativa (etapa 7D.1 do Passo 7)
+
+**Conceito:** Um `AuthorizationManager<RequestAuthorizationContext>` pode decidir pelo acesso administrativo usando apenas a autenticação mantida pelo Spring Security e o estado atual de `admin_access`. A política exige `OAuth2AuthenticationToken` autenticado da inscrição `google`, principal `OidcUser` com emissor Google e registro `APPROVED` para o `sub` textual; email, role e estado da sessão não substituem a consulta ao banco. A decisão positiva ainda não protege nenhum endpoint: `/api/admin/**` permanece em `denyAll` até que operações reais sejam ligadas à política e testadas. Exceção do repositório é propagada, sem transformar indisponibilidade do banco em ausência normal de aprovação.
+
+**Comandos:**
+- `cd backend && ./gradlew test --tests com.vemdancarjp.config.AdminAccessAuthorizationManagerTest` — fase vermelha inicial por classe ausente; fase verde da decisão básica; segunda fase vermelha ao aceitar emissor diferente e verde após validar o emissor; execução final passou com 6 testes.
+- `cd backend && ./gradlew test --tests com.vemdancarjp.config.AdminAccessAuthorizationIntegrationTest --tests com.vemdancarjp.config.AuthEndpointsIntegrationTest` — passou com PostgreSQL/Testcontainers e MockMvc, incluindo revogação sem novo login e bloqueio administrativo para `APPROVED`.
+- `cd backend && ./gradlew test --rerun-tasks` — 41 testes em 7 suítes, 0 falhas.
+- `cd backend && ./gradlew build` — compilação e empacotamento concluídos; a tarefa de testes já estava atualizada.
+- `git diff --check` — sem erros de whitespace no diff rastreado.
+
+**Erros:**
+- A implementação inicial comparou `URI` com o emissor `URL` retornado por `OidcUser#getIssuer()` → a comparação passou a usar o texto do emissor e os testes ficaram verdes.
+- Um stub não usado no teste de emissor acionou a verificação estrita do Mockito → o cenário passou a comprovar primeiro que a identidade Google válida é aprovada, antes de negar os emissores incompatíveis.
+
+**Referências:**
+- `backend/src/main/java/com/vemdancarjp/config/AdminAccessAuthorizationManager.java` — decisão isolada e consulta atual ao banco.
+- `backend/src/test/java/com/vemdancarjp/config/AdminAccessAuthorizationManagerTest.java` — cenários unitários de autorização e falha de persistência.
+- `backend/src/test/java/com/vemdancarjp/config/AdminAccessAuthorizationIntegrationTest.java` — mudança real de estado no PostgreSQL.
+- `backend/src/test/java/com/vemdancarjp/config/AuthEndpointsIntegrationTest.java` — regressão HTTP e demais contratos de autenticação.
+- `PLAN.md` e ADR-003 — limite entre a política preparada e a proteção HTTP futura.
+
 ### Sessão OIDC, CSRF e logout (etapa 7C do Passo 7)
 
 **Conceito:** A sessão informa `NONE`, `PENDING` ou `APPROVED` após consultar `admin_access` pelo `sub` do principal OIDC em cada requisição; email e demais dados pessoais não entram na resposta. O CSRF padrão do Spring Security guarda o token na sessão HTTP e aceita `X-CSRF-TOKEN`. O logout nativo só processa sessão autenticada com token válido, invalida a sessão e devolve 204; a aprovação ainda não concede acesso a `/api/admin/**`. Como o `LogoutFilter` precede a autorização de rotas, um filtro anterior exige autenticação no POST de logout; o matcher identifica somente método e caminho.
