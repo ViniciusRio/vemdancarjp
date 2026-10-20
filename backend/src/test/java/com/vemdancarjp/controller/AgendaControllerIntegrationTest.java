@@ -102,6 +102,21 @@ class AgendaControllerIntegrationTest {
     }
 
     @Test
+    void keepsEqualSortOrderEventsBetweenLowerAndHigherGroups() throws Exception {
+        eventRepository.saveAndFlush(event("tuesday", "Evento posterior", 20));
+        eventRepository.saveAndFlush(event("tuesday", "Empate A", 10));
+        eventRepository.saveAndFlush(event("tuesday", "Evento anterior", 5));
+        eventRepository.saveAndFlush(event("tuesday", "Empate B", 10));
+
+        var names = getAgenda().path("days").get(1).path("events").findValuesAsText("name");
+
+        assertThat(names).hasSize(4);
+        assertThat(names.get(0)).isEqualTo("Evento anterior");
+        assertThat(names.subList(1, 3)).containsExactlyInAnyOrder("Empate A", "Empate B");
+        assertThat(names.get(3)).isEqualTo("Evento posterior");
+    }
+
+    @Test
     void returnsBothVenueListsOrderedBySortOrder() throws Exception {
         variableVenueRepository.saveAndFlush(variableVenue("Casa do Cedro", 20));
         variableVenueRepository.saveAndFlush(variableVenue("Pátio do Sol", 10));

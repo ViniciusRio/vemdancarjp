@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguratio
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class SecurityConfigStartupTest {
 
@@ -18,7 +19,8 @@ class SecurityConfigStartupTest {
             WebMvcAutoConfiguration.class,
             SecurityAutoConfiguration.class,
             OAuth2ClientAutoConfiguration.class))
-        .withUserConfiguration(SecurityConfig.class);
+        .withUserConfiguration(SecurityConfig.class)
+        .withBean(AdminAccessAuthorizationManager.class, () -> mock(AdminAccessAuthorizationManager.class));
 
     @Test
     void completeConfigurationStarts() {

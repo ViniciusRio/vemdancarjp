@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.context.SecurityContext;
@@ -49,7 +50,10 @@ class AuthEndpointsIntegrationTest {
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired ObjectMapper objectMapper;
     @Autowired AdminAccessAuthorizationManager adminAccessAuthorizationManager;
-    @BeforeEach void cleanAccess() { jdbcTemplate.update("DELETE FROM admin_access"); }
+    @BeforeEach void cleanAccess() {
+        jdbcTemplate.update("DELETE FROM admin_access");
+        jdbcTemplate.update("DELETE FROM events");
+    }
 
     @Test void anonymousSessionIsUnauthorizedWithoutCaching() throws Exception {
         mockMvc.perform(get("/api/auth/session"))
@@ -133,7 +137,7 @@ class AuthEndpointsIntegrationTest {
         mockMvc.perform(get("/api/auth/session").session(session)).andExpect(status().isOk());
     }
 
-    @Test void approvedSessionCannotAccessAdminAndAgendaIsPublic() throws Exception {
+    @Test void approvedSessionCanCreateEventButOtherAdminRoutesRemainBlocked() throws Exception {
         insertAccess("subject-a", "APPROVED", "person@example.test");
         MockHttpSession session = oidcSession("subject-a", "person@example.test");
         SecurityContext context = (SecurityContext) session.getAttribute(SPRING_SECURITY_CONTEXT_KEY);
@@ -143,8 +147,13 @@ class AuthEndpointsIntegrationTest {
         String csrfToken = token(mockMvc.perform(get("/api/auth/csrf").session(session)).andReturn());
         mockMvc.perform(get("/api/admin/events").session(session))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("FORBIDDEN"));
-        mockMvc.perform(post("/api/admin/events").session(session).header("X-CSRF-TOKEN", csrfToken))
-            .andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("FORBIDDEN"));
+        mockMvc.perform(post("/api/admin/events").session(session).header("X-CSRF-TOKEN", csrfToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"dayId":"monday","name":"Forró da Lua","venue":"Salão","neighborhood":"Centro","sortOrder":7}
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").isNumber());
         mockMvc.perform(get("/api/agenda")).andExpect(status().isOk());
     }
 

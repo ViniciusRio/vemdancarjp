@@ -1,5 +1,6 @@
 package com.vemdancarjp.config;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,6 +37,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
+            AdminAccessAuthorizationManager adminAccessAuthorizationManager,
             ObjectProvider<ClientRegistrationRepository> clientRegistrations,
             @Value("${spring.security.oauth2.client.registration.google.client-secret:}") String clientSecret,
             @Value("${APP_FRONTEND_URL:}") String frontendUrl) throws Exception {
@@ -64,11 +66,13 @@ public class SecurityConfig {
 
         http
             .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/agenda").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/session").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 .requestMatchers(HttpMethod.GET, "/oauth2/authorization/google", "/login/oauth2/code/google").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/admin/events").access(adminAccessAuthorizationManager)
                 .requestMatchers("/api/admin/**").denyAll()
                 .anyRequest().denyAll())
             .exceptionHandling(errors -> errors

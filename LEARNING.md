@@ -28,6 +28,27 @@ Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem d
 
 <!-- Novas entradas vão sendo inseridas imediatamente abaixo desta linha, mantendo a mais recente no topo. -->
 
+### Criação administrativa de eventos (etapa 7D.2 do Passo 7 e primeiro incremento do Passo 8)
+
+**Conceito:** A cadeia HTTP libera apenas `POST /api/admin/events` para uma sessão Google OIDC cujo `sub` permanece `APPROVED` no PostgreSQL. O CSRF e os erros 401/403 existentes continuam ativos; a entrada é validada localmente, sem mudar a configuração global do JSON, e o serviço transacional grava somente os campos de evento permitidos. A resposta é `201` com apenas o `id`; a agenda pública lê o novo registro. O restante de `/api/admin/**` segue bloqueado. Esta implementação aguarda revisão, e o Passo 8 completo, o bootstrap e o corte do painel Vue do Supabase continuam pendentes.
+
+**Comandos:**
+- `cd backend && ./gradlew test --tests com.vemdancarjp.config.AuthEndpointsIntegrationTest --tests com.vemdancarjp.config.SecurityConfigStartupTest --rerun-tasks` — regressões de sessão e inicialização corrigidas; sucesso.
+- `cd backend && ./gradlew test --rerun-tasks` — 75 testes, 0 falhas, incluindo PostgreSQL/Testcontainers e teste HTTP real para falha da aprovação.
+- `cd backend && ./gradlew build` — sucesso; `test` já estava atualizado. O Gradle exibiu aviso de recursos obsoletos para a versão 9 e o OpenJDK exibiu aviso do agente nos testes.
+
+**Erros:**
+- A primeira execução completa encontrou três falhas em testes antigos: um POST antes bloqueado alcançava agora o endpoint e retornava 415 sem JSON; o teste de contexto isolado não fornecia o novo gerenciador de autorização → as expectativas e o contexto de teste foram atualizados para a rota liberada.
+- Uma falha do repositório de aprovação resultava em 403 no teste HTTP real porque `.anyRequest().denyAll()` bloqueava o despacho interno `ERROR` → a cadeia passou a permitir somente `DispatcherType.ERROR`; teste direto de `/error` confirma que a URL continua bloqueada, e a falha real retorna `5xx` sem criação.
+
+**Referências:**
+- `openspec/changes/admin-event-creation/` — contrato, desenho, cenários e tarefas do incremento.
+- `backend/src/main/java/com/vemdancarjp/config/SecurityConfig.java` — autorização pontual e despacho interno de erro.
+- `backend/src/main/java/com/vemdancarjp/controller/AdminEventController.java` — validação e resposta HTTP.
+- `backend/src/test/java/com/vemdancarjp/config/AdminEventSecurityIntegrationTest.java` — cenários de autorização, CSRF e validação.
+- `backend/src/test/java/com/vemdancarjp/config/AdminEventAuthorizationFailureIntegrationTest.java` — falha de infraestrutura no MockMvc e no servidor real.
+- `PLAN.md` e ADR-003 — limites da etapa e pendências do corte.
+
 ### Política isolada de autorização administrativa (etapa 7D.1 do Passo 7)
 
 **Conceito:** Um `AuthorizationManager<RequestAuthorizationContext>` pode decidir pelo acesso administrativo usando apenas a autenticação mantida pelo Spring Security e o estado atual de `admin_access`. A política exige `OAuth2AuthenticationToken` autenticado da inscrição `google`, principal `OidcUser` com emissor Google e registro `APPROVED` para o `sub` textual; email, role e estado da sessão não substituem a consulta ao banco. A decisão positiva ainda não protege nenhum endpoint: `/api/admin/**` permanece em `denyAll` até que operações reais sejam ligadas à política e testadas. Exceção do repositório é propagada, sem transformar indisponibilidade do banco em ausência normal de aprovação.
