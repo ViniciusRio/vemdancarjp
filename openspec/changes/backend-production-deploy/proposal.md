@@ -12,8 +12,8 @@ A primeira opção era uma VM Arm do Oracle Cloud Always Free, mas São Paulo, a
 - Expor na internet somente `GET /api/agenda`, com um filtro na própria aplicação. Login, sessão e rotas administrativas ficam inacessíveis em produção nesta change.
 - Permitir que `https://vemdancarjp.com.br` leia a agenda por CORS, sem credenciais.
 - Popular o PostgreSQL de produção com uma carga inicial a partir do `public/agenda.json`, revisado por Vinícius. Os dados do Supabase são descartados por decisão dele.
-- Fazer deploy automático do backend a partir da `main`. Cada versão é testada antes de receber tráfego, e o rollback usa uma imagem já publicada.
-- Limitar o custo com escala a zero, no máximo uma instância e alerta de orçamento.
+- Fazer deploy automático do backend a partir da `main`. Cada versão é testada antes de receber tráfego, uma falha depois da troca devolve o tráfego à versão anterior, e o rollback usa uma imagem já publicada. Migrations precisam ser compatíveis com a versão em produção.
+- Reduzir o risco de custo com escala a zero, no máximo uma instância, alerta de orçamento e teto de gasto. **O custo zero não é garantido: o Google pode cobrar além do alerta e do teto.**
 - Manter a agenda recriável a partir da carga versionada no repositório. Backup e monitoramento ficam fora desta change, por decisão de Vinícius, e passam a ser pré-requisito antes de o painel admin voltar a gravar em produção.
 - Definir `VITE_API_URL` no build de produção do frontend.
 - Registrar em ADR o abandono do Supabase e a escolha do provedor, e atualizar `PLAN.md` e `STATUS.md`: a reconciliação e o rollback para o Supabase deixam de existir.
@@ -33,7 +33,7 @@ Nenhuma; o projeto ainda não possui specs principais do OpenSpec.
 ## Impact
 
 - **Backend:** configuração de CORS em `SecurityConfig`, filtro da superfície pública ativado por variável de ambiente e testes de integração. Sem novos endpoints, sem mudanças de schema e sem novas dependências de aplicação.
-- **Novos arquivos:** `backend/Dockerfile`, `deploy/seed/` (carga inicial), `docs/deploy/backend-production.md` e o workflow de deploy do backend.
+- **Novos arquivos:** `backend/Dockerfile`, `deploy/seed/` (carga inicial), `deploy/check-public-surface.sh`, `deploy/check-schema-compat.sh`, `docs/deploy/backend-production.md` e o workflow de deploy do backend.
 - **Frontend:** só `VITE_API_URL` em `.github/workflows/deploy.yml`. O código não muda.
 - **Infraestrutura:** projeto no Google Cloud com faturamento, projeto no Neon, verificação do domínio e registro DNS `api` no Registro.br, criados ou aprovados por Vinícius.
 - **Limitações aceitas:**
@@ -42,6 +42,8 @@ Nenhuma; o projeto ainda não possui specs principais do OpenSpec.
   - A API fica nos EUA, longe do público.
   - O painel admin continua fora do ar até as changes seguintes, e alterar a agenda exige uma operação manual no banco, também versionada na carga.
   - Sem monitoramento, uma queda só é notada quando alguém abre o site.
-- **Custo:** o Google exige cartão, e a saída de dados para o Brasil pode não entrar na isenção de 1 GiB. Com uma agenda de cerca de 5 KB, o valor estimado é de centavos, e o alerta de orçamento cobre esse risco.
+  - Quem pode publicar uma imagem consegue, indiretamente, ler a senha do banco. Por isso, o deploy fica restrito à `main` protegida e ao disparo manual por Vinícius.
+  - Atingir o teto de gasto deixa a agenda fora do ar até o próximo mês, salvo edição do orçamento.
+- **Custo:** o Google exige cartão, e a saída de dados para o Brasil é tratada como cobrada. No uso esperado, o valor fica abaixo de US$ 0,01 por mês. Em um abuso contínuo de 100 requisições por segundo, chegaria a cerca de US$ 14 por dia. Alerta e teto de gasto reduzem esse risco, mas têm atraso, e o teto pode não cobrir a saída de dados. Ver "Limites de custo" em `design.md`.
 - **Dependência mantida:** os secrets `VITE_SUPABASE_*` e o SDK permanecem, porque a home importa o cliente Supabase e removê-los quebraria a página. A remoção fica para a change de corte do frontend.
 - **Independente de:** PR da listagem administrativa (`feat/admin-event-listing`) e arquivamento de `admin-event-creation`.

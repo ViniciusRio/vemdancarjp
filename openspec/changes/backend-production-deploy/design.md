@@ -13,15 +13,20 @@ Motivação em `proposal.md`; comportamento exigido em `specs/`.
 - **Google (documentação consultada em 03/11/2026):**
   - O IPv4 de uma VM custa US$ 0,005 por hora, com só 1 hora isenta por mês.
   - Cloud Run com cobrança por requisição isenta 180.000 vCPU-segundos, 360.000 GiB-segundos e 2 milhões de requisições por mês. A isenção usa preços de Tier 1, que inclui `us-east1`.
-  - A saída de dados tem 1 GiB isento "dentro da América do Norte", e não está claro se o tráfego para o Brasil entra.
-- **Neon (documentação consultada em 03/11/2026):** plano gratuito sem cartão, com 1 GB de armazenamento, 100 CU-horas e 5 GB de transferência por mês. Suspende após 5 minutos parado e volta em algumas centenas de milissegundos. Atingir o limite suspende o banco até o próximo ciclo. A restauração alcança até 6 horas.
+  - A saída de dados tem 1 GiB isento "dentro da América do Norte". A tabela de preços não mostra isenção para a América do Sul, então este plano assume que o tráfego para o Brasil é cobrado, a US$ 0,19/GiB.
+  - Preços de lista por requisição: US$ 0,000024 por vCPU-segundo, US$ 0,0000025 por GiB-segundo e US$ 0,40 por milhão de requisições. Estes preços e o de saída vêm de páginas que podem estar defasadas e são reconferidos na tarefa 1.3.
+  - Orçamento só de alerta não limita gastos. Existe também um teto de gasto (_spend cap_) para um serviço elegível em um projeto, e o Cloud Run é elegível. Ele pausa o uso novo até o próximo mês ou até a edição do orçamento. A aplicação não é instantânea, o excedente é cobrado, e os custos podem levar mais de 24 horas para aparecer. A documentação não diz se a saída de dados conta para o teto e calcula o valor pelo preço de lista, sem créditos.
+  - O limite máximo de instâncias existe no serviço (`--max`) e na revisão (`--max-instances`). Revisões ativas só por tag não contam no limite do serviço.
+  - `gcloud run services update SERVICE --scaling=0` desliga o serviço sem apagá-lo, mas não afeta revisões ativas só por tag.
+- **Neon (documentação consultada em 03/11/2026):** plano gratuito sem cartão, com 1 GB de armazenamento, 100 CU-horas e 5 GB de transferência por mês. Suspende após 5 minutos parado e volta em algumas centenas de milissegundos. A suspensão ocorre mesmo com conexões abertas e ociosas, e corta essas conexões. Atingir o limite suspende o banco até o próximo ciclo. A restauração alcança até 6 horas.
+- **GitHub (consultado em 03/11/2026):** a `main` tem a ruleset `protect-main` ativa, que exige PR e bloqueia force push e exclusão, sem exceções. Vinícius é o único colaborador.
 - **Medição local do tempo de subida (03/11/2026):** com PostgreSQL local e agenda vazia, a primeira resposta `200` levou de 11 a 14 s com 1 vCPU e 512 MiB, e cerca de 6 s com 2 vCPUs ou com `-XX:TieredStopAtLevel=1`. A memória ficou entre 176 e 273 MiB.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Devolver a agenda pública ao ar, com custo zero ou de centavos e de forma recriável se um provedor falhar.
+- Devolver a agenda pública ao ar, com custo esperado zero ou de centavos e de forma recriável se um provedor falhar. Custo zero não é garantido: ver "Limites de custo".
 - Manter a imagem portátil, sem depender de recursos específicos do Google.
 - Permanecer somente em planos gratuitos durante o desenvolvimento.
 
@@ -45,7 +50,7 @@ Internet --HTTPS--> Cloud Run (filtro -> Spring Boot) --TLS--> Neon (PostgreSQL)
                          +-- todo o resto: 404
 ```
 
-O serviço usa 1 vCPU, 512 MiB, cobrança por requisição, nenhuma instância mínima e no máximo uma. O banco fica no Neon porque o PostgreSQL gerenciado do Google não tem plano gratuito equivalente e um PostgreSQL dentro do Cloud Run perderia os dados.
+O serviço usa 1 vCPU, 512 MiB, cobrança por requisição, nenhuma instância mínima e no máximo uma, definida no serviço e na revisão. A candidata de um deploy pode subir uma instância além dessa, durante o teste, porque não recebe tráfego. O banco fica no Neon porque o PostgreSQL gerenciado do Google não tem plano gratuito equivalente e um PostgreSQL dentro do Cloud Run perderia os dados.
 
 **Alternativas descartadas:**
 
@@ -73,9 +78,16 @@ A validação mede o tempo de resposta pelo domínio e pelo endereço `run.app`.
 
 ### Filtro da superfície pública na aplicação
 
-Um filtro de servlet, antes da cadeia do Spring Security, responde `404` a tudo que não seja `GET /api/agenda`. Ele é ativado por `APP_PUBLIC_SURFACE=agenda-only`, definida pelo workflow, e fica desligado em desenvolvimento e nos testes dos outros fluxos. As credenciais Google também não são configuradas nesta change, então o OIDC fica desligado.
+Um filtro de servlet, antes da cadeia do Spring Security, responde `404` a tudo que não seja `GET` com o caminho exato `/api/agenda`. A comparação usa o URI bruto da requisição, então `/api/agenda/` e `/api/agenda;x=1` também recebem `404`. `HEAD` e `OPTIONS` também recebem `404`: o `fetch` da home não envia cabeçalhos personalizados e, por isso, não faz preflight. O filtro é ativado por `APP_PUBLIC_SURFACE=agenda-only`, definida pelo workflow, e fica desligado em desenvolvimento e nos testes dos outros fluxos. As credenciais Google também não são configuradas nesta change, então o OIDC fica desligado.
 
-Como a restrição depende de uma variável, o workflow confere `404` em `/api/admin/events` na versão candidata, antes de ela receber tráfego. O `SecurityConfig` continua como proteção da aplicação, inclusive quando o filtro sair em uma change futura.
+Como a restrição depende de uma variável, uma única rota testada não a comprova. `deploy/check-public-surface.sh` recebe um endereço e exige:
+
+- `200` com JSON em `GET /api/agenda`;
+- `404` em `GET` e `POST` de `/api/admin/events`, em `GET` de `/api/auth/session`, `/api/auth/csrf`, `/oauth2/authorization/google`, `/login/oauth2/code/google`, `/actuator/health` e `/`;
+- `404` em `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` e `OPTIONS` de `/api/agenda`;
+- `404` em `/api/agenda/`, `/api/agenda;x=1` e, sem normalização pelo cliente, `/api/agenda/../admin/events`.
+
+O workflow também lê a configuração da revisão candidata e exige `APP_PUBLIC_SURFACE=agenda-only`. O `SecurityConfig` continua como proteção da aplicação, inclusive quando o filtro sair em uma change futura.
 
 **Alternativas descartadas:**
 
@@ -108,33 +120,77 @@ O workflow roda os testes, gera o JAR e monta a imagem `linux/amd64` sobre `ecli
 
 ### Deploy com tráfego só depois do teste
 
-1. O workflow cria a revisão sem tráfego, com uma tag própria.
-2. Confere `200` em `/api/agenda` e `404` em `/api/admin/events` no endereço dessa tag.
-3. Só então move o tráfego e confere a agenda no domínio público.
+1. O workflow registra a divisão de tráfego atual e a imagem em produção.
+2. Roda a checagem de compatibilidade de migrations, descrita na próxima seção, em `push` e em `workflow_dispatch`.
+3. Cria a revisão com `--no-traffic` e a tag `candidate`, e confere sua configuração efetiva.
+4. Roda `deploy/check-public-surface.sh` no endereço da tag.
+5. Move todo o tráfego para a revisão candidata.
+6. Roda a mesma checagem no endereço `run.app` e, se a variável `API_PUBLIC_URL` do repositório estiver definida, no domínio. O domínio só é mapeado depois do primeiro deploy, então a variável é definida na tarefa 5.2.
+7. Remove a tag `candidate`, em qualquer resultado.
 
-Se qualquer etapa antes da troca falhar, o tráfego continua na revisão anterior, sem script de retorno. O serviço é criado uma vez, antes do primeiro deploy, porque criar uma revisão sem tráfego exige que ele já exista.
+Se uma etapa anterior à troca falhar, o tráfego não muda. Se a etapa 5 ou 6 falhar ou o workflow for cancelado depois do início da troca, um passo com `if: failure() || cancelled()` restaura a divisão registrada, confere a agenda e deixa o workflow vermelho. Se a própria restauração falhar, o log indica o comando de reversão manual para Vinícius.
 
-O workflow roda em `push` na `main` e em `workflow_dispatch`, nunca em PR, com `concurrency` no workflow inteiro e sem cancelar o que está em andamento. Assim, deploys não se sobrepõem nem terminam fora de ordem.
+A tag precisa sair em todos os casos, porque uma candidata reprovada continuaria acessível no endereço dela e poderia expor rotas que a checagem acabou de recusar. Esse passo não pode depender do sucesso dos anteriores.
+
+O `--no-traffic` fixa o tráfego em uma revisão específica, e os deploys seguintes mantêm esse comportamento. Assim, nenhuma alteração de configuração no serviço recebe tráfego automaticamente.
+
+O serviço é criado uma vez, antes do primeiro deploy, com a imagem de exemplo do Google e sem segredo, porque criar uma revisão sem tráfego exige que ele já exista. Enquanto essa imagem estiver em produção, não há imagem anterior da aplicação para a checagem de compatibilidade, que é pulada.
+
+O workflow roda em `push` na `main` e em `workflow_dispatch`, nunca em PR, com `concurrency` no workflow inteiro e sem cancelar o que está em andamento. Assim, deploys não se sobrepõem nem terminam fora de ordem. O `workflow_dispatch` aceita só digests do pacote deste repositório no GHCR e tem a opção `simulate_post_traffic_failure`, que falha a etapa 6 de propósito para testar a restauração em produção.
+
+### Migrations compatíveis com a versão em produção
+
+O Flyway roda na subida da candidata, antes de ela receber tráfego e no banco de produção. Se a candidata falhar depois disso, a versão anterior continua no ar sobre o schema novo, e um rollback de imagem não desfaz o schema. Por isso, toda migration precisa ser compatível com a imagem em produção: mudanças destrutivas, como remover ou renomear colunas, são feitas em duas versões, primeiro parando de usar e só depois removendo.
+
+`deploy/check-schema-compat.sh` comprova essa regra antes de o banco de produção ser tocado. Ele sobe um PostgreSQL vazio no runner, inicia a imagem candidata para aplicar as migrations e depois inicia a imagem em produção sobre esse schema, exigindo `200` em `/api/agenda`. Uma falha bloqueia o deploy. A checagem usa um banco sem dados, então detecta incompatibilidade de schema e de validação do Flyway ou do Hibernate, mas não problemas que dependam do conteúdo.
+
+A checagem também roda em `workflow_dispatch`, porque um digest disparado à mão pode ser de uma imagem reprovada em um `push` que continua publicada no GHCR. Em um rollback, a imagem alvo é mais antiga, e a imagem em produção apenas aplica as próprias migrations sobre o schema dela, então a checagem passa. O teste contra o schema real de produção vem depois, na etapa 4: se a imagem alvo não aceitar esse schema, o tráfego não muda.
+
+Se uma migration ainda assim causar dano, a recuperação é restaurar o Neon dentro da janela de 6 horas ou recriar o banco a partir da carga versionada. A migration aplicada nunca é editada.
+
+**Alternativa descartada:** rodar migrations em um passo separado, com credencial própria. É o desenho mais seguro, mas esta change não tem migration nova, e o banco só guarda dados recriáveis. Fica como pré-requisito da change que voltar a permitir escrita pelo painel admin.
 
 ### Credencial por Workload Identity Federation
 
 O GitHub Actions troca seu token OIDC por uma credencial temporária do Google, sem chave guardada nos secrets. O provedor de identidade aceita só este repositório e a `main`. A conta de serviço do deploy só pode atualizar este serviço do Cloud Run e usar a conta de serviço de execução. A leitura do segredo fica com a conta de execução.
 
+Essa separação impede a leitura direta, mas não a indireta: quem publica uma imagem pode fazê-la ler a senha durante a execução. Portanto, o controle real é quem consegue chegar ao deploy. Hoje, isso exige merge na `main`, protegida por ruleset sem exceções, ou `workflow_dispatch`, disponível só para quem tem escrita no repositório, e Vinícius é o único colaborador. As actions de terceiros do workflow são fixadas por SHA completo, porque rodam com acesso à credencial.
+
+A mesma senha do banco serve para migrations e leitura. Enquanto o banco só guarda dados recriáveis, esse risco é aceito. Separar as credenciais fica como pré-requisito da change que voltar a permitir escrita pelo painel admin.
+
 **Alternativa descartada:** chave JSON de conta de serviço, que é uma credencial de longa duração.
 
 ### Conexão com o Neon
 
-A aplicação usa a conexão direta, sem `-pooler`, porque o Flyway roda na subida com o mesmo datasource e o Neon recomenda conexão direta para migrations, além de desaconselhar pool do cliente sobre conexão com pool. A URL exige `sslmode=require`, e o Hikari usa um pool pequeno, de no máximo 2 conexões.
+A aplicação usa a conexão direta, sem `-pooler`, porque o Flyway roda na subida com o mesmo datasource e o Neon recomenda conexão direta para migrations, além de desaconselhar pool do cliente sobre conexão com pool. A URL exige `sslmode=require`, e o Hikari usa um pool pequeno, de no máximo 2 conexões, com `minimumIdle=0` e sem `keepaliveTime`, porque consultas periódicas consumiriam CU-horas e atrapalhariam a suspensão. Tudo isso é configurado por variáveis de ambiente, sem código específico do provedor.
+
+O Neon corta as conexões ao suspender, enquanto a instância do Cloud Run pode continuar viva por mais tempo. A primeira requisição depois disso precisa obter uma conexão nova, e não receber erro. Um teste de integração encerra as conexões do pool com `pg_terminate_backend` e exige `200` na requisição seguinte, e a validação repete o cenário em produção.
 
 A senha fica no Secret Manager, com um único segredo, replicação só em `us-east1` e uma versão ativa, dentro do limite gratuito de 6 versões.
 
-A documentação do Neon não diz se conexões ociosas impedem a suspensão. A validação confere o consumo de CU-horas, para detectar esse caso antes de o limite mensal parar o banco.
+A validação confere o consumo de CU-horas, para detectar um consumo acima do esperado antes de o limite mensal parar o banco.
 
 ### Limites de custo
 
-O alerta de orçamento avisa, mas não bloqueia gastos. O limite real vem de uma instância no máximo e de nenhuma instância mínima. Na conta com 15 s por subida e 2 vCPUs, 100 subidas por dia consomem 90.000 dos 180.000 vCPU-segundos isentos.
+**O plano gratuito não é uma garantia de custo zero.** O Google tem cartão cadastrado e pode cobrar qualquer uso acima das isenções. Uma instância no máximo limita a capacidade, não o gasto.
 
-Se a isenção de saída de dados não valer para o Brasil, 10 mil respostas de 5 KB somam cerca de 50 MB, ou centavos, supondo um preço de até US$ 0,20/GB, que ainda será conferido na primeira fatura.
+| Cenário | Cálculo | Custo |
+|---|---|---|
+| Uso esperado: 10 mil visitas por mês | 50 MB para o Brasil, CPU e requisições dentro da isenção | Menos de US$ 0,01 |
+| Saída para o Neon | Só as consultas enviadas; a resposta do banco é entrada, não cobrada. Cerca de 10 MB nesse uso | Isento (dentro de 1 GiB na América do Norte) |
+| Subidas: 100 por dia, 15 s, 2 vCPUs | 90.000 dos 180.000 vCPU-segundos isentos | US$ 0 |
+| Abuso contínuo: 100 requisições por segundo, por 30 dias, com CPU sempre ativa | CPU cerca de US$ 58, memória US$ 2, requisições cerca de US$ 103, saída de 1,3 TB cerca de US$ 246 | Cerca de US$ 410 por mês, ou US$ 14 por dia |
+
+A taxa de abuso é um exemplo, não um limite. Os valores usam os preços do contexto. Na prática, esse volume esgotaria antes os 5 GB de transferência do Neon, em cerca de 1 milhão de requisições, e a API passaria a responder com erro, mas esse efeito não é tratado como proteção.
+
+São duas barreiras, configuradas por Vinícius no console:
+
+1. **Alerta de US$ 1**, em um orçamento do projeto inteiro, para detectar qualquer cobrança, inclusive fora do Cloud Run.
+2. **Teto de gasto de US$ 5** para o Cloud Run. O valor considera o preço de lista, que pode não descontar as isenções, e fica bem acima do uso esperado para não pausar o site em uso normal. Se atingido, a API fica fora do ar até o próximo mês ou até a edição do orçamento, e o site mostra o erro de carregamento. Para este projeto, é preferível ficar fora do ar a acumular uma cobrança.
+
+Nenhuma das duas é instantânea, e a segunda pode não cobrir a saída de dados. Em um abuso, é possível pagar mais que o teto, por exemplo cerca de US$ 14 por dia de atraso no cenário acima. Por isso, ao receber um alerta, Vinícius confere a origem do gasto e, se ainda não houver explicação, desliga o serviço com `gcloud run services update <serviço> --scaling=0`, comando documentado no guia de operação. Automação própria por Pub/Sub não é necessária.
+
+A validação confere o consumo real depois de 7 dias.
 
 ### Sem backup e monitoramento nesta change
 
@@ -168,19 +224,21 @@ Como merge na `main` é deploy, o site só deve apontar para a API depois de ela
 - [O mapeamento de domínio é lento ou retirado] → Medir na validação. O site pode passar a usar o endereço `run.app` com um novo build.
 - [Primeiro acesso lento] → `--cpu-boost`, a sonda de inicialização e o estado de carregamento da home. O tempo real é medido na validação. Visitantes podem esperar vários segundos.
 - [Queda do GHCR impede a subida de uma instância] → O Cloud Run mantém imagens públicas em cache por até uma hora. Se isso causar falhas, a imagem passa por um repositório remoto do Artifact Registry.
-- [Cobrança inesperada no Google] → Uma instância no máximo, escala a zero e alerta de orçamento. O alerta não bloqueia gastos.
+- [Cobrança inesperada no Google] → Risco aceito por Vinícius, ao ser explicitado que o custo zero não é garantido. Alerta de US$ 1, teto de gasto de US$ 5 e desligamento manual reduzem o valor, mas nenhum deles é instantâneo.
+- [O teto de gasto pausa o site] → Um abuso pode tirar a agenda do ar até o próximo mês, salvo edição do orçamento. Aceito, por ser preferível a uma cobrança.
+- [Quem publica imagem pode ler a senha do banco] → Deploy só pela `main` protegida ou por `workflow_dispatch` de Vinícius. Separar as credenciais é pré-requisito do painel admin.
 - [O Neon atinge o limite mensal] → A API fica em erro até o próximo ciclo, sem perda de dados. A validação confere o consumo.
 - [Mudança nos planos gratuitos do Google ou do Neon] → A imagem é portátil, e a agenda é recriada pela carga versionada.
 - [Neon exposto na internet] → TLS obrigatório e senha gerada, guardada só no Secret Manager. O plano gratuito não oferece restrição por IP.
 - [Correção manual fora da carga] → Uma recriação restauraria dados antigos. A spec exige versionar antes de aplicar, e a comparação automatizada detecta divergências.
-- [Migration incompatível em um deploy futuro] → Rollback de imagem não desfaz schema. A restauração do Neon alcança 6 horas, e as migrations seguem aditivas.
+- [Migration incompatível em um deploy futuro] → Rollback de imagem não desfaz schema. A checagem de compatibilidade bloqueia o deploy antes de tocar o banco de produção. Se ainda houver dano, a restauração do Neon alcança 6 horas, e a carga versionada recria a agenda.
 - [Agenda desatualizada] → Revisão obrigatória antes do corte. Até o painel voltar, correções exigem uma operação manual no banco.
 - [Sem Supabase, painel admin quebrado no site] → Aceito nesta change. A rota `/admin` continua existindo sem funcionar até o corte do frontend.
 - [Queda não percebida, já que não há monitoramento] → Risco aceito por Vinícius, que abre o site depois de cada deploy e periodicamente. A queda anterior durou semanas sem correção, então o monitoramento volta antes do painel admin.
 
 ## Migration Plan
 
-1. Vinícius cria o projeto no Google com alerta de orçamento, o projeto no Neon, e verifica o domínio.
+1. Vinícius cria o projeto no Google com alerta de orçamento e teto de gasto, o projeto no Neon, e verifica o domínio.
 2. O serviço, a identidade do workflow e o segredo são configurados no Google.
 3. Merge do PR de infraestrutura; o workflow publica a imagem, e Vinícius torna o pacote público, se preciso.
 4. Mapeamento do domínio, carga inicial revisada e validação da API em produção.
@@ -189,5 +247,5 @@ Como merge na `main` é deploy, o site só deve apontar para a API depois de ela
 **Rollback:**
 
 - **Site:** reverter o PR de corte volta ao estado atual, com a home em erro. Não há versão anterior funcional para onde voltar.
-- **Backend:** `workflow_dispatch` com o digest anterior.
+- **Backend:** `workflow_dispatch` com o digest anterior, que passa pelas mesmas checagens antes de receber tráfego. Uma falha depois da troca restaura o tráfego automaticamente. Rollback de imagem não desfaz migrations.
 - **Provedor:** subir a mesma imagem em outro ambiente, repetir a carga versionada e apontar o DNS `api` para ele. Nenhum build do frontend é necessário, salvo se o site estiver usando o `run.app`.

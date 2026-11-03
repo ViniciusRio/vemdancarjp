@@ -21,6 +21,10 @@ O site publicado SHALL obter a agenda em `https://api.vemdancarjp.com.br/api/age
 - **WHEN** a API não responde ou responde com erro
 - **THEN** a página continua abrindo e mostra a mensagem de erro de carregamento
 
+#### Scenario: Banco acordando com a aplicação ativa
+- **WHEN** o banco suspendeu por falta de uso, cortando as conexões, e a instância da aplicação continua ativa
+- **THEN** a primeira requisição seguinte responde `200` com a agenda, sem erro de conexão
+
 #### Scenario: Supabase inacessível
 - **WHEN** o host do Supabase não resolve e a API está disponível
 - **THEN** a agenda é exibida normalmente
@@ -48,12 +52,20 @@ A API SHALL autorizar por CORS somente a origem configurada do site na leitura d
 Em produção, a aplicação SHALL responder somente a `GET /api/agenda` e SHALL devolver `404` a todo o resto antes de executar qualquer operação, em qualquer endereço do serviço, enquanto a administração não for publicada por uma change própria.
 
 #### Scenario: Rota administrativa em produção
-- **WHEN** alguém acessa `/api/admin/events`, `/api/auth/session`, `/api/auth/csrf` ou `/oauth2/authorization/google` no domínio da API ou no endereço padrão do serviço
+- **WHEN** alguém acessa `/api/admin/events`, com `GET` ou `POST`, ou `/api/auth/session`, `/api/auth/csrf`, `/oauth2/authorization/google`, `/login/oauth2/code/google`, `/actuator/health` ou `/`, no domínio da API, no endereço padrão do serviço ou no endereço de teste de uma revisão
 - **THEN** a resposta é `404`
 
 #### Scenario: Método diferente de GET na agenda
-- **WHEN** alguém envia `POST` ou `DELETE` para `/api/agenda`
+- **WHEN** alguém envia `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` ou `OPTIONS` para `/api/agenda`
 - **THEN** a resposta é `404` e nenhum dado é alterado
+
+#### Scenario: Variação do caminho da agenda
+- **WHEN** alguém acessa `/api/agenda/`, `/api/agenda;x=1` ou `/api/agenda/../admin/events`, sem normalização pelo cliente
+- **THEN** a resposta é `404`
+
+#### Scenario: Leitura da agenda pelo site
+- **WHEN** a home publicada lê a agenda de outra origem
+- **THEN** o navegador não precisa de preflight e a leitura funciona com a resposta a `OPTIONS` sendo `404`
 
 #### Scenario: Fora de produção
 - **WHEN** a aplicação roda sem a restrição, como no desenvolvimento e nos testes

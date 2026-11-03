@@ -22,8 +22,39 @@ O backend SHALL ser atualizado em produção automaticamente após merge na `mai
 - **THEN** o workflow falha e o tráfego continua na versão anterior
 
 #### Scenario: Nova versão expõe outras rotas
-- **WHEN** a nova versão responde em `/api/admin/events` com qualquer status diferente de `404`
+- **WHEN** a nova versão responde com status diferente de `404` a qualquer rota ou método da checagem de superfície, ou sua configuração não contém `APP_PUBLIC_SURFACE=agenda-only`
 - **THEN** o workflow falha e o tráfego continua na versão anterior
+
+#### Scenario: Endereço de teste depois do deploy
+- **WHEN** um deploy termina, com sucesso ou com falha
+- **THEN** o endereço de teste da revisão candidata deixa de responder pela aplicação
+
+#### Scenario: Falha depois da troca de tráfego
+- **WHEN** a agenda não responde `200`, ou a superfície não é a esperada, depois de o tráfego ir para a nova versão
+- **THEN** o workflow devolve o tráfego à divisão registrada antes do deploy, confere a agenda e termina com falha
+
+#### Scenario: Cancelamento durante a troca
+- **WHEN** o workflow é cancelado depois de iniciar a troca de tráfego
+- **THEN** o tráfego volta à divisão registrada antes do deploy
+
+### Requirement: Migrations compatíveis com a versão em produção
+Uma nova versão SHALL aplicar ao banco de produção somente migrations com as quais a imagem em produção continue funcionando.
+
+#### Scenario: Migration incompatível
+- **WHEN** a imagem em produção não responde `200` em `/api/agenda` sobre um banco de teste com as migrations da nova versão
+- **THEN** o workflow falha antes de criar a revisão, e o banco de produção não é alterado
+
+#### Scenario: Imagem reprovada disparada manualmente
+- **WHEN** o workflow manual recebe o digest de uma imagem cujas migrations a imagem em produção não aceita
+- **THEN** o workflow falha antes de criar a revisão, e o banco de produção não é alterado
+
+#### Scenario: Falha depois de aplicar a migration
+- **WHEN** a nova versão aplica uma migration compatível no banco de produção e depois falha em uma checagem
+- **THEN** a versão anterior continua recebendo tráfego e respondendo `200` em `/api/agenda`
+
+#### Scenario: Primeiro deploy
+- **WHEN** ainda não existe imagem da aplicação em produção
+- **THEN** a checagem de compatibilidade é pulada, e as demais continuam obrigatórias
 
 ### Requirement: Deploy exclusivo
 Somente um deploy, automático ou manual, SHALL atuar em produção por vez. Uma tentativa que falha SHALL manter o tráfego na última versão válida.
@@ -41,18 +72,30 @@ Vinícius SHALL poder voltar o backend a uma imagem já publicada, sem novo buil
 
 #### Scenario: Rollback manual
 - **WHEN** o workflow de deploy é disparado manualmente com o digest de uma imagem anterior
-- **THEN** essa imagem passa a rodar em produção, desde que seja compatível com o schema atual do banco
+- **THEN** essa imagem passa pelas mesmas checagens no endereço de teste e, se aprovada, passa a rodar em produção
+
+#### Scenario: Imagem incompatível com o schema atual
+- **WHEN** a imagem alvo do rollback não sobe ou não responde `200` em `/api/agenda` com o schema atual do banco
+- **THEN** o workflow falha e o tráfego continua na versão em produção
+
+#### Scenario: Imagem de outra origem
+- **WHEN** o workflow manual recebe uma imagem que não seja um digest do pacote deste repositório
+- **THEN** o workflow falha sem criar revisão
 
 ### Requirement: Credencial de automação limitada
-A credencial usada pelo workflow de deploy SHALL permitir somente o deploy do serviço do backend, a partir da `main` deste repositório, sem chave de longa duração guardada no GitHub e sem acesso ao banco.
+A credencial usada pelo workflow de deploy SHALL permitir somente o deploy do serviço do backend, a partir da `main` deste repositório, sem chave de longa duração guardada no GitHub e sem acesso direto ao banco. Como a imagem publicada pode ler a senha do banco durante a execução, o acesso ao deploy SHALL ser tratado como acesso indireto a essa senha e limitado a merge revisado na `main` protegida ou a disparo manual por Vinícius.
 
 #### Scenario: Execução fora da main
 - **WHEN** um workflow de outra branch ou de outro repositório tenta obter a credencial
 - **THEN** o provedor recusa a credencial
 
 #### Scenario: Operação fora do previsto
-- **WHEN** a credencial tenta alterar outro serviço ou ler a senha do banco
+- **WHEN** a credencial tenta alterar outro serviço ou ler diretamente a senha do banco
 - **THEN** o provedor recusa a operação
+
+#### Scenario: Alteração direta na main
+- **WHEN** alguém tenta enviar um commit para a `main` sem PR
+- **THEN** o GitHub recusa o envio, e nenhum deploy é iniciado
 
 ### Requirement: Segredos fora do repositório
 Senhas e chaves de produção SHALL ficar somente no gerenciador de segredos do provedor, nunca em arquivos versionados, logs, imagens ou na configuração visível do serviço.
@@ -61,8 +104,8 @@ Senhas e chaves de produção SHALL ficar somente no gerenciador de segredos do 
 - **WHEN** uma nova versão é iniciada sem acesso à senha do banco
 - **THEN** ela não recebe tráfego, e a senha padrão de desenvolvimento não é aceita pela base de produção
 
-### Requirement: Custo dentro dos planos gratuitos
-A produção SHALL escalar a zero quando parada, SHALL usar no máximo uma instância e SHALL ter um alerta de orçamento ativo. Atingir um limite de plano gratuito do banco SHALL interromper o serviço, sem perda de dados e sem gerar cobrança no banco.
+### Requirement: Custo limitado, sem garantia de zero
+A produção SHALL escalar a zero quando parada, SHALL usar no máximo uma instância recebendo tráfego e SHALL ter um alerta de orçamento e um teto de gasto ativos. Essas medidas reduzem o risco, mas não garantem custo zero: o Google pode cobrar pelo uso acima das isenções, inclusive além do alerta e do teto. Atingir um limite de plano gratuito do banco SHALL interromper o serviço, sem perda de dados e sem gerar cobrança no banco.
 
 #### Scenario: Sem acessos
 - **WHEN** a API passa um período sem requisições
@@ -74,7 +117,15 @@ A produção SHALL escalar a zero quando parada, SHALL usar no máximo uma inst�
 
 #### Scenario: Gasto acima de zero
 - **WHEN** o projeto no provedor registra qualquer cobrança acima do valor configurado no alerta
-- **THEN** Vinícius recebe um aviso do alerta de orçamento
+- **THEN** Vinícius recebe um aviso do alerta de orçamento, sujeito ao atraso de relatório do provedor
+
+#### Scenario: Ação depois do aviso
+- **WHEN** Vinícius recebe um alerta e o gasto não tem explicação
+- **THEN** ele consegue desligar o serviço seguindo o guia de operação, e novas requisições deixam de ser atendidas
+
+#### Scenario: Teto de gasto atingido
+- **WHEN** o custo estimado do Cloud Run ultrapassa o teto configurado
+- **THEN** o provedor pausa o uso novo do serviço, a home mostra a mensagem de erro de carregamento e nenhum dado é perdido
 
 #### Scenario: Limite do banco atingido
 - **WHEN** o banco atinge o limite mensal do plano gratuito
