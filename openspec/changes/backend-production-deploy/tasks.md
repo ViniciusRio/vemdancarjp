@@ -25,9 +25,9 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 
 ## 4. Deploy automático
 
-- [ ] 4.1 Criar o script de deploy com `flock`, validação do digest, dump prévio, teste da agenda e volta à imagem anterior lida depois da trava; verificar localmente com uma imagem boa, uma que falha ao subir e duas execuções simultâneas
+- [x] 4.1 Criar o script de deploy com `flock`, validação do digest, dump prévio, teste da agenda e volta à imagem anterior lida depois da trava; verificar localmente com uma imagem boa, uma que falha ao subir e duas execuções simultâneas
 - [ ] 4.2 Criar a chave de deploy com `restrict,command=` e verificar que outro comando enviado por ela não é executado e que `ssh -L` até o PostgreSQL é recusado
-- [ ] 4.3 Criar `.github/workflows/deploy-backend.yml` (testes, JAR, imagem `arm64` e `amd64`, GHCR, deploy por digest, `concurrency` sem cancelamento), acionado por `push` na `main` em `backend/**` e `deploy/**` e por `workflow_dispatch`; verificar com `actionlint` ou revisão da sintaxe antes do merge
+- [x] 4.3 Criar `.github/workflows/deploy-backend.yml` (testes, JAR, imagem `arm64` e `amd64`, GHCR, deploy por digest, `concurrency` sem cancelamento), acionado por `push` na `main` em `backend/**` e `deploy/**` e por `workflow_dispatch`; verificar com `actionlint` ou revisão da sintaxe antes do merge
 - [ ] 4.4 Abrir o PR de infraestrutura com o handoff e verificar lint, type-check, testes do frontend e do backend passando
 - [ ] 4.5 **[Vinícius]** Aprovar os secrets no GitHub, criar o `.env` na VM e fazer o merge do PR de infraestrutura; verificar que o workflow conclui e que `https://api.vemdancarjp.com.br/api/agenda` responde `200`
 - [ ] 4.6 Testar um rollback real por `workflow_dispatch` para o digest anterior e verificar a versão em execução
