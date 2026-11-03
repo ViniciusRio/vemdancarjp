@@ -10,12 +10,13 @@ Motivação em `proposal.md`; comportamento exigido em `specs/`.
 - **Supabase:** a home importa `authStore`, e o cliente é criado na importação. A carga da agenda é independente de `authStore.init()`, então o host morto não bloqueia a agenda, mas a retirada dos secrets `VITE_SUPABASE_*` quebraria a página.
 - **Infraestrutura:** repositório público; DNS no Registro.br, sem registro CAA; `www` já redireciona para o domínio principal, então só existe uma origem do site.
 - **Oracle Always Free (documentação consultada em 02/11/2026):** até 2 OCPUs e 12 GB em Ampere A1, 200 GB de disco, somente na região principal. Instância pode ser recuperada se CPU (P95), rede e memória ficarem abaixo de 20% por 7 dias.
+- **Conta Oracle:** região principal Brazil East (São Paulo), em Free Trial. Ao fim do trial, a conta fica limitada aos recursos Always Free, então a VM precisa usar somente recursos elegíveis.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Devolver a agenda pública ao ar, com custo zero e sem perda de dados se a Oracle falhar.
+- Devolver a agenda pública ao ar, com custo zero e de forma recriável se a Oracle falhar.
 - Manter a configuração portátil para a Hostinger.
 
 **Non-Goals:**
@@ -25,6 +26,7 @@ Motivação em `proposal.md`; comportamento exigido em `specs/`.
 - Separar checks e deploy do frontend no `deploy.yml`; é um item próprio do `STATUS.md`.
 - Corrigir `lastUpdated`, que hoje sempre mostra a data atual.
 - Rate limiting, cache e alta disponibilidade. Uma única VM é aceita para este projeto.
+- Backup e monitoramento. Ver a decisão abaixo.
 
 ## Decisions
 
@@ -64,29 +66,20 @@ O workflow roda os testes em `x86`, gera o JAR e monta a imagem para `linux/arm6
 
 ### Deploy por SSH com comando forçado
 
-O GitHub Actions conecta com uma chave cujo `authorized_keys` usa `command=` para só executar o script de deploy, recebendo o digest como argumento validado. O script grava um `pg_dump` local, sobe a imagem, testa `/api/agenda` e volta à imagem anterior se falhar. O host key do servidor fica fixado nos secrets. A porta 22 fica aberta porque os IPs do Actions variam, então o SSH aceita só chave.
+O GitHub Actions conecta com uma chave cujo `authorized_keys` usa `restrict,command=` para só executar o script de deploy, recebendo o digest como argumento validado. O `restrict` desativa encaminhamento de portas, agente e PTY, porque `command=` sozinho ainda permitiria abrir um túnel até o PostgreSQL. O script grava um `pg_dump` local, sobe a imagem, testa `/api/agenda` e volta à imagem anterior se falhar. O host key do servidor fica fixado nos secrets. A porta 22 fica aberta porque os IPs do Actions variam, então o SSH aceita só chave.
 
 O workflow só roda em `push` na `main` e em `workflow_dispatch`, nunca em PR, para que forks não alcancem os secrets.
 
 **Alternativa descartada:** Tailscale ou outro túnel, mais um serviço para um ganho pequeno neste momento.
 
-### Backup puxado pelo GitHub Actions
+### Sem backup e monitoramento nesta change
 
-Um workflow agendado conecta com uma segunda chave de comando forçado. O servidor executa `pg_dump | age -r <chave pública>` e envia só o resultado criptografado. O workflow guarda o arquivo como artifact com retenção de 30 dias.
+Decisão de Vinícius. Nesta fase, o banco não guarda nada que não possa ser recriado: o painel está fora do ar, `admin_access` fica vazia e a agenda vem de um arquivo versionado. Por isso, perder a VM significa subir outra e repetir a carga.
 
-- Fica fora da Oracle, sem contratar outro serviço.
-- A falha do workflow gera email automaticamente.
-- O dump nunca sai do servidor em claro. Isso é obrigatório porque artifacts de repositório público podem ser baixados por outros usuários.
-- A chave privada fica só com Vinícius, fora do servidor e do GitHub.
+Isso vale enquanto duas condições forem cumpridas:
 
-**Alternativas descartadas:**
-
-- Object Storage da Oracle: seria perdido junto com a conta.
-- Bucket externo (R2, B2): mais uma conta e mais uma credencial no servidor, além de não avisar sozinho quando o cron falha.
-
-### Monitoramento pelo GitHub Actions
-
-Um workflow agendado a cada 30 minutos consulta a API com `Origin` do site e exige `200`, o cabeçalho de CORS correto e ao menos um evento. A falha envia email pela notificação do Actions. O agendamento do GitHub pode atrasar, o que é aceitável aqui.
+1. Toda correção manual no banco também entra em `deploy/seed/agenda-initial.sql`.
+2. Backup e monitoramento são pré-requisitos da change que voltar a permitir escrita pelo painel admin. A proposta anterior, com backup em artifact criptografado e alerta independente, foi retirada e pode servir de ponto de partida.
 
 ### Carga inicial fora do Flyway
 
@@ -101,7 +94,7 @@ Os dados ficam em `deploy/seed/agenda-initial.sql`, executado uma única vez e �
 Como merge na `main` é deploy, o site só deve apontar para a API depois de ela estar validada:
 
 1. **PR de infraestrutura:** Dockerfile, CORS, `deploy/` e workflows. O site continua como está, sem regressão.
-2. Deploy, carga inicial, teste de backup e restauração em produção.
+2. Deploy, carga inicial e validação da API em produção.
 3. **PR de corte:** `VITE_API_URL` no `deploy.yml`. O merge desse PR faz o site voltar.
 
 **Alternativa descartada:** PR único, que publicaria um frontend apontando para uma API ainda vazia.
@@ -112,11 +105,11 @@ Não usaremos scripts que simulam uso, como NeverIdle ou LookBusy. Isso é frág
 
 ## Risks / Trade-offs
 
-- [A Oracle recupera a VM ou bloqueia a conta] → Monitor avisa em até cerca de 30 minutos; backup fora da Oracle; imagem `amd64` e passo a passo do plano B prontos. Perda máxima de um dia de dados, e as edições são raras até o painel voltar.
-- [Sem capacidade Arm em São Paulo] → Tentar outro domínio de disponibilidade ou mais tarde. Se persistir, Vinícius decide entre outra região, antes de fechar a conta, e a Hostinger.
-- [Região principal fora do Brasil] → Maior tempo de resposta, sem impacto funcional.
-- [GitHub desativa workflows agendados após 60 dias sem atividade no repositório] → Monitor e backup param de rodar. O GitHub avisa antes; o procedimento documenta como reativar. Confirmar o comportamento atual ao implementar.
-- [Notificação de workflow agendado não chega a Vinícius] → Forçar uma falha real durante a implementação e confirmar o recebimento do email.
+- [A Oracle recupera a VM ou bloqueia a conta] → A agenda é recriada pela carga versionada, com a imagem `amd64` e o passo a passo do plano B prontos. Não há perda de dados se a condição de versionar correções for cumprida.
+- [Queda não percebida, já que não há monitoramento] → Risco aceito por Vinícius, que abre o site depois de cada deploy e periodicamente. A queda anterior durou semanas sem correção, então o monitoramento volta antes do painel admin.
+- [Correção manual fora da carga] → Uma recriação restauraria dados antigos. A spec exige versionar a correção e o documento de operação repete a regra.
+- [Sem capacidade Arm em São Paulo] → Tentar outro domínio de disponibilidade ou mais tarde. Se persistir, Vinícius decide sobre a Hostinger, já que a região principal não muda.
+- [VM criada com recurso não elegível durante o trial] → Conferir o selo Always Free no shape e no disco na criação, para a VM não parar nem gerar cobrança ao fim do trial.
 - [Pouca memória para os dois serviços] → Limites explícitos no Compose e no heap do Java, ajustados por medição.
 - [Migration incompatível em um deploy futuro] → Rollback de imagem não desfaz schema; o script grava dump antes de cada deploy, e as migrations seguem aditivas.
 - [Docker contorna o firewall da VM] → Publicar só as portas do Caddy e testar de fora que a porta do PostgreSQL está fechada, além das regras da VCN e do iptables da imagem Oracle.
@@ -128,14 +121,14 @@ Não usaremos scripts que simulam uso, como NeverIdle ou LookBusy. Isso é frág
 1. Vinícius cria a conta Oracle, a VM e o registro DNS `api`.
 2. Merge do PR de infraestrutura; o workflow publica a imagem e faz o deploy.
 3. Vinícius revisa os dados; a carga inicial é executada.
-4. Validação de backup, restauração e monitoramento.
+4. Validação da API em produção e da recriação em ambiente `amd64`.
 5. Merge do PR de corte; validação da home publicada.
 
 **Rollback:**
 
 - **Site:** reverter o PR de corte volta ao estado atual, com a home em erro. Não há versão anterior funcional para onde voltar.
 - **Backend:** `workflow_dispatch` com o digest anterior.
-- **Provedor:** restaurar o backup em outra VM e apontar o DNS `api` para ela. Nenhum build do frontend é necessário.
+- **Provedor:** subir outra VM, repetir a carga versionada e apontar o DNS `api` para ela. Nenhum build do frontend é necessário.
 
 ## Open Questions
 

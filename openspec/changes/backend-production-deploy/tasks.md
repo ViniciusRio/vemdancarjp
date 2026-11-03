@@ -4,7 +4,7 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 
 ## 1. Decisão e pré-requisitos
 
-- [ ] 1.1 Escrever o ADR-005 sobre o abandono do Supabase e o descarte dos seus dados em `docs/decisions/` e atualizar a seção de Rollback e o Passo 10 do `PLAN.md`; verificar que nenhum trecho ainda prevê reconciliação ou retorno ao Supabase
+- [ ] 1.1 Escrever o ADR-005 sobre o abandono do Supabase, o descarte dos seus dados e a ausência temporária de backup e monitoramento em `docs/decisions/` e atualizar a seção de Rollback e o Passo 10 do `PLAN.md`; verificar que nenhum trecho ainda prevê reconciliação ou retorno ao Supabase
 - [ ] 1.2 **[Vinícius]** Criar a VM Ampere A1 (1 OCPU, 4 GB, Ubuntu LTS `arm64`) na conta Oracle; verificar com acesso SSH por chave
 - [ ] 1.3 **[Vinícius]** Criar o registro `api.vemdancarjp.com.br` no Registro.br apontando para o IP da VM; verificar resolução por DNS público
 
@@ -26,7 +26,7 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 ## 4. Deploy automático
 
 - [ ] 4.1 Criar o script de deploy com validação do digest, dump prévio, teste da agenda e volta à imagem anterior; verificar localmente com uma imagem boa e uma que falha ao subir
-- [ ] 4.2 Criar a chave de deploy com comando forçado e verificar que outro comando enviado por ela não é executado
+- [ ] 4.2 Criar a chave de deploy com `restrict,command=` e verificar que outro comando enviado por ela não é executado e que `ssh -L` até o PostgreSQL é recusado
 - [ ] 4.3 Criar `.github/workflows/deploy-backend.yml` (testes, JAR, imagem `arm64` e `amd64`, GHCR, deploy por digest), acionado por `push` na `main` em `backend/**` e `deploy/**` e por `workflow_dispatch`; verificar com `actionlint` ou revisão da sintaxe antes do merge
 - [ ] 4.4 Abrir o PR de infraestrutura com o handoff e verificar lint, type-check, testes do frontend e do backend passando
 - [ ] 4.5 **[Vinícius]** Aprovar os secrets no GitHub, criar o `.env` na VM e fazer o merge do PR de infraestrutura; verificar que o workflow conclui e que `https://api.vemdancarjp.com.br/api/agenda` responde `200`
@@ -38,14 +38,9 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 - [ ] 5.2 Criar `deploy/seed/agenda-initial.sql` e um teste de integração que comprove carga em base vazia, falha sem alterações em base preenchida e tabelas administrativas vazias; verificar com o teste focado
 - [ ] 5.3 Executar a carga na produção e verificar que `GET /api/agenda` retorna os mesmos itens da fonte, na mesma ordem, com uma comparação automatizada
 
-## 6. Backup e monitoramento
+## 6. Recriação e plano B
 
-- [ ] 6.1 **[Vinícius]** Gerar o par de chaves `age`, guardar a privada fora do servidor e do GitHub, e informar só a pública; verificar criptografando e abrindo um arquivo de teste
-- [ ] 6.2 Criar a chave de backup com comando forçado e o workflow agendado com retenção de 30 dias; verificar uma execução manual que produza artifact criptografado e não vazio
-- [ ] 6.3 Restaurar o artifact em um PostgreSQL novo, em `amd64`, seguindo o documento, e verificar que o backend responde `/api/agenda` com os mesmos dados da produção
-- [ ] 6.4 Criar o workflow de monitoramento e verificar os três cenários de falha com uma URL de teste ou entrada simulada
-- [ ] 6.5 Forçar uma falha real de monitoramento e de backup e verificar que o email chega a Vinícius
-- [ ] 6.6 Documentar em `docs/deploy/backend-production.md` o restore, a migração para a Hostinger e a reativação de workflows agendados; verificar que o plano B usa os mesmos passos executados na 6.3
+- [ ] 6.1 Documentar em `docs/deploy/backend-production.md` a recriação do ambiente, a migração para a Hostinger e a regra de versionar correções manuais; verificar seguindo o documento em um ambiente `amd64` novo, com `/api/agenda` retornando os dados da carga
 
 ## 7. Corte do site
 
@@ -63,3 +58,4 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 - Revisão adversarial da spec pelo Codex e aprovação de Vinícius antes de iniciar a implementação.
 - Arquivar a change depois da validação em produção.
 - Próximas changes: CRUD admin restante, gestão de admins com primeiro admin, e corte do frontend admin com remoção do Supabase.
+- Backup e monitoramento são pré-requisitos da change que voltar a permitir escrita pelo painel admin em produção.
