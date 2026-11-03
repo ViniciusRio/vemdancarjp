@@ -53,9 +53,8 @@ The project is mid-migration from Supabase to a self-hosted Java + Spring Boot b
 │       ├── repository/          # Spring Data JPA repositories
 │       └── service/             # AgendaService, AuthService, EventService, ...
 ├── docker-compose.yml           # Postgres + backend (prod)
-├── docs/                        # AI workflow (older guides in docs/archive/)
+├── docs/                        # AI workflow and ADRs (older guides in docs/archive/)
 ├── openspec/                    # specs and changes
-├── vault/                       # architecture notes and ADRs
 ├── PLAN.md                      # backend migration plan
 ├── STATUS.md                    # current state
 ├── LEARNING.md                  # frozen learning log from earlier migration steps

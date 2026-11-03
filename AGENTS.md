@@ -65,11 +65,11 @@ Migração de Supabase para Java + Spring Boot em andamento; roteiro em `PLAN.md
 - **Comentários:** não adicione a menos que solicitado.
 - **Sem invenção:** não invente tabelas, colunas, endpoints ou políticas sem confirmar no código ou nas migrations.
 
-## Decisões e vault
+## Decisões
 
-- Antes de propor arquitetura ou mudança de alto risco, consulte os ADRs em `vault/decisoes/`. Decisão que vale além de uma change vira ADR lá.
-- `vault/` é Markdown comum (entrada: `vault/00-indice.md`). `vault/tarefas/` é histórico congelado: progresso fica no `tasks.md` do OpenSpec.
-- **Nunca** coloque segredos, tokens ou dados pessoais no vault nem em outro arquivo versionado.
+- Antes de propor arquitetura ou mudança de alto risco, consulte os ADRs em `docs/decisions/`. Decisão que vale além de uma change vira ADR lá.
+- Progresso de tarefas fica no `tasks.md` do OpenSpec.
+- **Nunca** coloque segredos, tokens ou dados pessoais em arquivos versionados.
 
 ## Correções recorrentes
 

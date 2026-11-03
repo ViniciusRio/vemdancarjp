@@ -21,4 +21,4 @@ type: template
 
 - <alternativa 1>: <por que descartada>
 
-Veja também: [[...]].
+Veja também: <links para ADRs ou arquivos relacionados>.

@@ -21,6 +21,6 @@ Siga `AGENTS.md`, o pedido do usuário, `PLAN.md` e as ADRs pertinentes. Essas i
 
 ## Dados sensíveis
 
-Antes de mostrar comandos, logs ou artefatos, substitua segredos, tokens, cookies e dados pessoais por `<REDACTED>`. Não grave credenciais em testes, relatórios ou no vault. Use apenas as linhas necessárias para demonstrar o resultado.
+Antes de mostrar comandos, logs ou artefatos, substitua segredos, tokens, cookies e dados pessoais por `<REDACTED>`. Não grave credenciais em testes, relatórios ou documentação. Use apenas as linhas necessárias para demonstrar o resultado.
 
 Entregue causa confirmada ou hipóteses ainda abertas, evidências, teste de regressão e resultados das verificações. Não dependa de scripts externos que não existam neste repositório.

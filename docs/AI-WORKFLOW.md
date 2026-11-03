@@ -100,9 +100,9 @@ No fluxo sequencial, o revisor somente leitura pode revisar o commit sem worktre
 | Roteiro da migração | `PLAN.md` |
 | Progresso de uma tarefa | `openspec/changes/*/tasks.md` |
 | Decisão de uma change | `design.md` do OpenSpec |
-| Decisão que vale além de uma change | ADR em `vault/decisoes/` |
+| Decisão que vale além de uma change | ADR em `docs/decisions/` |
 | Handoff e revisão | Descrição e comentários do PR |
-| Histórico | Git. `vault/tarefas/` e `LEARNING.md` estão congelados |
+| Histórico | Git. `LEARNING.md` está congelado |
 
 ## Economia de tokens
 

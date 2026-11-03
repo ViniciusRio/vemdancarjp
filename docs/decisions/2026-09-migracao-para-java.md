@@ -30,5 +30,3 @@ Adotar Java + Spring Boot como backend, mantendo o frontend Vue 3. OpenRouter (G
 ## Alternativas consideradas
 
 - Permanecer no Supabase: descartado por limitações de controle e custo.
-
-Veja também: [[arquitetura/visao-geral]], [[arquitetura/backend-java]].
