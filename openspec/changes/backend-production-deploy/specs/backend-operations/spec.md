@@ -21,6 +21,10 @@ O backend SHALL ser atualizado em produção automaticamente após merge na `mai
 - **WHEN** a nova versão não responde `200` em `/api/agenda` dentro do tempo limite
 - **THEN** o workflow falha e a versão anterior volta a rodar
 
+#### Scenario: Merge altera a configuração do servidor
+- **WHEN** um merge altera `deploy/compose.prod.yml`, `deploy/Caddyfile` ou `deploy/deploy.sh`
+- **THEN** a mudança só vale na produção depois da cópia manual descrita em `docs/deploy/backend-production.md`
+
 ### Requirement: Deploy exclusivo
 Somente um deploy, automático ou manual, SHALL atuar em produção por vez. O retorno automático de uma tentativa que falhou SHALL restaurar a última versão que estava em execução no início dessa tentativa exclusiva.
 

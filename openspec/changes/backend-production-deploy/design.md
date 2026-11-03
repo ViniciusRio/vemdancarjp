@@ -69,6 +69,8 @@ O workflow roda os testes em `x86`, gera o JAR e monta a imagem para `linux/arm6
 
 O GitHub Actions conecta com uma chave cujo `authorized_keys` usa `restrict,command=` para só executar o script de deploy, recebendo o digest como argumento validado. O `restrict` desativa encaminhamento de portas, agente e PTY, porque `command=` sozinho ainda permitiria abrir um túnel até o PostgreSQL. O script grava um `pg_dump` local, sobe a imagem, testa `/api/agenda` e volta à imagem anterior se falhar. O host key do servidor fica fixado nos secrets. A porta 22 fica aberta porque os IPs do Actions variam, então o SSH aceita só chave.
 
+Como a chave só envia o digest, mudanças em `compose.prod.yml`, `Caddyfile` e `deploy.sh` são copiadas à mão para o servidor, seguindo `docs/deploy/backend-production.md`. Decisão de Vinícius: essas mudanças são raras, e a chave continua limitada.
+
 O workflow só roda em `push` na `main` e em `workflow_dispatch`, nunca em PR, para que forks não alcancem os secrets.
 
 Deploys são serializados em duas camadas: `concurrency` no workflow, sem cancelar o que está em andamento, e `flock` no script do servidor. A imagem de retorno é lida depois de obter a trava, para uma tentativa com falha nunca restaurar uma versão anterior à última publicada.

@@ -30,6 +30,7 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 - [x] 4.3 Criar `.github/workflows/deploy-backend.yml` (testes, JAR, imagem `arm64` e `amd64`, GHCR, deploy por digest, `concurrency` sem cancelamento), acionado por `push` na `main` em `backend/**` e `deploy/**` e por `workflow_dispatch`; verificar com `actionlint` ou revisão da sintaxe antes do merge
 - [ ] 4.4 Abrir o PR de infraestrutura com o handoff e verificar lint, type-check, testes do frontend e do backend passando
 - [ ] 4.5 **[Vinícius]** Aprovar os secrets no GitHub, criar o `.env` na VM e fazer o merge do PR de infraestrutura; verificar que o workflow conclui e que `https://api.vemdancarjp.com.br/api/agenda` responde `200`
+- [x] 4.7 Documentar em `docs/deploy/backend-production.md` a cópia manual de `compose.prod.yml`, `Caddyfile` e `deploy.sh` e verificar a interpolação dos dois arquivos de ambiente com `docker compose config`
 - [ ] 4.6 Testar um rollback real por `workflow_dispatch` para o digest anterior e verificar a versão em execução
 
 ## 5. Carga inicial

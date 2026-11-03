@@ -4,6 +4,7 @@
 - Fluxo Claude Code + Codex adotado (docs/AI-WORKFLOW.md).
 ## Bloqueado
 - Produção: home em erro desde 16/09. O build chama /api/agenda sem backend publicado. Primeira tarefa.
+- Deploy: script e workflow prontos em feat/backend-production-deploy, sem rodar em produção. Oracle sem capacidade em São Paulo; provedor em decisão.
 ## Próximo
 1. Corrigir o site. 2. Separar checks e deploy no deploy.yml.
 3. Arquivar admin-event-creation. 4. PR da listagem (WIP local). 5. Corte do Passo 10.
