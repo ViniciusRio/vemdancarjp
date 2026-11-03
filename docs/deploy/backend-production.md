@@ -1,40 +1,184 @@
 # Backend em produção
 
-Guia de operação do servidor. As seções de preparação e recriação do ambiente ainda serão escritas.
+Guia de operação do backend no Cloud Run, com banco no Neon. Decisão: ADR-006. Nada aqui deve conter senhas ou valores reais: troque os itens entre `<...>` no momento de usar.
 
-## Atualizar a configuração do servidor
+## Preparar o ambiente
 
-O workflow de deploy envia só o digest da imagem, porque a chave de automação não pode gravar arquivos no servidor. Por isso, o merge de uma mudança em `deploy/compose.prod.yml`, `deploy/Caddyfile` ou `deploy/deploy.sh` **não chega sozinho à produção**, mesmo com o workflow verde.
+Pré-requisitos: projeto no Google com faturamento, alerta de US$ 1 no projeto, teto de gasto de US$ 5 no Cloud Run e projeto no Neon em `aws-us-east-1`.
 
-Depois do merge e do fim do workflow, a partir da raiz do repositório na `main` atualizada:
+Defina as variáveis no terminal:
 
-1. Copie os arquivos para o servidor, trocando `<IP>` pelo IP da VM:
+```bash
+export PROJECT_ID=<id-do-projeto>
+export PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+export REGION=us-east1
+export SERVICE=vemdancarjp-api
+export REPOSITORY=ViniciusRio/vemdancarjp
+gcloud config set project "$PROJECT_ID"
+gcloud services enable run.googleapis.com secretmanager.googleapis.com iamcredentials.googleapis.com sts.googleapis.com
+```
+
+### Contas de serviço e senha do banco
+
+```bash
+gcloud iam service-accounts create "$SERVICE-runtime"
+gcloud iam service-accounts create "$SERVICE-deploy"
+
+gcloud secrets create "$SERVICE-database-password" \
+  --replication-policy=user-managed --locations="$REGION"
+read -rs DB_PASSWORD
+printf '%s' "$DB_PASSWORD" | gcloud secrets versions add "$SERVICE-database-password" --data-file=-
+unset DB_PASSWORD
+
+gcloud secrets add-iam-policy-binding "$SERVICE-database-password" \
+  --member="serviceAccount:$SERVICE-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role=roles/secretmanager.secretAccessor
+```
+
+Mantenha uma única versão ativa do segredo. A conta de deploy não recebe acesso a ele.
+
+### Serviço
+
+O serviço nasce com a imagem de exemplo do Google e sem segredo. O primeiro deploy do workflow aplica a imagem real e a configuração da aplicação.
+
+```bash
+gcloud run deploy "$SERVICE" \
+  --region "$REGION" \
+  --image us-docker.pkg.dev/cloudrun/container/hello \
+  --service-account "$SERVICE-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
+  --cpu 1 --memory 512Mi --cpu-throttling --cpu-boost \
+  --min-instances 0 --max-instances 1 \
+  --allow-unauthenticated
+
+gcloud run services update "$SERVICE" --region "$REGION" --max 1
+```
+
+### Identidade do workflow
+
+```bash
+gcloud iam workload-identity-pools create github --location=global
+
+gcloud iam workload-identity-pools providers create-oidc vemdancarjp \
+  --location=global \
+  --workload-identity-pool=github \
+  --issuer-uri=https://token.actions.githubusercontent.com \
+  --attribute-mapping='google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref' \
+  --attribute-condition="assertion.repository == '$REPOSITORY' && assertion.ref == 'refs/heads/main'"
+
+gcloud iam service-accounts add-iam-policy-binding "$SERVICE-deploy@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/$REPOSITORY"
+
+gcloud run services add-iam-policy-binding "$SERVICE" --region "$REGION" \
+  --member="serviceAccount:$SERVICE-deploy@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role=roles/run.developer
+
+gcloud iam service-accounts add-iam-policy-binding "$SERVICE-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
+  --member="serviceAccount:$SERVICE-deploy@$PROJECT_ID.iam.gserviceaccount.com" \
+  --role=roles/iam.serviceAccountUser
+```
+
+### Variáveis do repositório
+
+Em **Settings → Secrets and variables → Actions → Variables**:
+
+| Variável | Valor |
+|---|---|
+| `GCP_PROJECT_ID` | ID do projeto |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/vemdancarjp` |
+| `GCP_DEPLOY_SERVICE_ACCOUNT` | `vemdancarjp-api-deploy@<PROJECT_ID>.iam.gserviceaccount.com` |
+| `PRODUCTION_DATABASE_JDBC_URL` | `jdbc:postgresql://<host-sem-pooler>/<banco>?sslmode=require` |
+| `PRODUCTION_DATABASE_USERNAME` | Usuário do banco |
+| `API_PUBLIC_URL` | `https://api.vemdancarjp.com.br`, só depois do mapeamento do domínio |
+
+A URL não leva senha. O pacote `vemdancarjp-backend` precisa ficar público no GHCR, para o Cloud Run baixar a imagem.
+
+### Domínio
+
+Depois de verificar `vemdancarjp.com.br` no Google e antes de definir `API_PUBLIC_URL`:
+
+```bash
+gcloud beta run domain-mappings create --region "$REGION" \
+  --service "$SERVICE" --domain api.vemdancarjp.com.br
+gcloud beta run domain-mappings describe --region "$REGION" --domain api.vemdancarjp.com.br
+```
+
+Crie no Registro.br o registro DNS indicado pelo segundo comando.
+
+## Deploy e rollback
+
+Um merge na `main` que altere `backend/`, os scripts `deploy/check-*.sh` ou o workflow publica uma nova versão. O workflow testa a versão candidata antes de ela receber tráfego e restaura o tráfego anterior se uma checagem falhar depois da troca.
+
+Para voltar a uma imagem já publicada:
+
+```bash
+gh workflow run deploy-backend.yml --ref main -f digest=sha256:<digest>
+```
+
+A imagem passa pelas mesmas checagens. Rollback de imagem **não desfaz migrations**.
+
+Se o workflow avisar que não conseguiu restaurar o tráfego, execute o comando indicado no log.
+
+### Migrations
+
+Toda migration precisa funcionar com a imagem em produção. Para remover ou renomear uma coluna, faça em duas versões: primeiro pare de usá-la e, em um deploy seguinte, remova. O workflow bloqueia migrations incompatíveis com `deploy/check-schema-compat.sh`. Migration aplicada nunca é editada.
+
+Se uma migration causar dano, restaure o Neon dentro da janela de 6 horas ou recrie o banco a partir da carga.
+
+## Corrigir a agenda
+
+Nenhuma correção vai direto ao banco:
+
+1. Altere `deploy/seed/agenda-initial.sql` em um PR revisado. O arquivo é a fonte da agenda de produção.
+2. Depois do merge, aplique ao banco um comando SQL com a mesma alteração, em uma transação, usando `psql` na conexão direta.
+3. Compare o resultado com a carga versionada. O script precisa de Docker e sobe uma base local a partir da carga:
 
    ```bash
-   scp deploy/compose.prod.yml deploy/Caddyfile deploy/deploy.sh ubuntu@<IP>:/tmp/
+   deploy/compare-agenda.sh https://api.vemdancarjp.com.br ghcr.io/viniciusrio/vemdancarjp-backend@sha256:<digest>
    ```
 
-2. No servidor, instale os arquivos e aplique a configuração. A trava impede que isso aconteça durante um deploy:
+## Carga inicial
 
-   ```bash
-   sudo flock /opt/vemdancarjp/.deploy.lock sh -c '
-     install -o deploy -g deploy -m 644 /tmp/compose.prod.yml /tmp/Caddyfile /opt/vemdancarjp/ &&
-     install -o deploy -g deploy -m 755 /tmp/deploy.sh /opt/vemdancarjp/ &&
-     cd /opt/vemdancarjp &&
-     docker compose -f compose.prod.yml --env-file .env --env-file image.env up -d --force-recreate caddy &&
-     docker compose -f compose.prod.yml --env-file .env --env-file image.env up -d
-   '
-   ```
+Com as tabelas da agenda vazias, depois do primeiro deploy, e com a senha informada pelo `psql`:
 
-   `--force-recreate caddy` é necessário porque o `Caddyfile` é montado como arquivo: o contêiner em execução continuaria vendo a versão antiga.
+```bash
+psql "postgresql://<usuario>@<host-sem-pooler>/<banco>?sslmode=require" \
+  --set ON_ERROR_STOP=1 --file deploy/seed/agenda-initial.sql
+```
 
-3. Confira o resultado de fora do servidor:
+A carga aborta sem alterar nada se alguma das tabelas tiver linhas. Confira o resultado com `deploy/compare-agenda.sh`.
 
-   ```bash
-   curl -fsS -o /dev/null -w '%{http_code}\n' https://api.vemdancarjp.com.br/api/agenda
-   curl -s -o /dev/null -w '%{http_code}\n' https://api.vemdancarjp.com.br/api/admin/events
-   ```
+## Recriar o ambiente
 
-   A agenda deve responder `200`, e a rota administrativa, `404`.
+Em outro projeto do Google, repita "Preparar o ambiente", faça o deploy por `workflow_dispatch` com o digest desejado e execute a carga inicial.
 
-Para desfazer, repita os passos a partir de uma versão anterior desses arquivos. Um rollback por `workflow_dispatch` troca só a imagem e não reverte a configuração.
+Em outro provedor, a mesma imagem `amd64` funciona com qualquer PostgreSQL:
+
+```bash
+docker run --detach --publish 8080:8080 \
+  --env SPRING_DATASOURCE_URL='jdbc:postgresql://<host>/<banco>?sslmode=require' \
+  --env SPRING_DATASOURCE_USERNAME='<usuario>' \
+  --env SPRING_DATASOURCE_PASSWORD \
+  --env APP_PUBLIC_SURFACE=agenda-only \
+  --env APP_FRONTEND_URL=https://vemdancarjp.com.br \
+  ghcr.io/viniciusrio/vemdancarjp-backend@sha256:<digest>
+```
+
+Coloque HTTPS na frente da aplicação, execute a carga inicial, aponte o registro DNS `api` para o novo servidor e confira com `deploy/check-public-surface.sh` e `deploy/compare-agenda.sh`.
+
+## Conter um gasto inesperado
+
+Alertas e o teto de gasto têm atraso, e o teto pode não cobrir a saída de dados. Ao receber um alerta, confira a origem em **Faturamento → Relatórios**. Se não houver explicação, desligue o serviço:
+
+```bash
+gcloud run services update vemdancarjp-api --region us-east1 --scaling=0
+```
+
+As novas requisições passam a falhar, e a home mostra o erro de carregamento. Para religar:
+
+```bash
+gcloud run services update vemdancarjp-api --region us-east1 --scaling=auto
+gcloud run services update vemdancarjp-api --region us-east1 --max 1
+```
+
+Se o teto for atingido, o uso novo fica pausado até o próximo mês ou até a edição do orçamento. Depois de editá-lo, o serviço pode levar até uma hora para voltar ao normal.

@@ -5,7 +5,7 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 ## 1. Decisão e pré-requisitos
 
 - [x] 1.1 Escrever o ADR-005 sobre o abandono do Supabase, o descarte dos seus dados e a ausência temporária de backup e monitoramento em `docs/decisions/` e atualizar a seção de Rollback e o Passo 10 do `PLAN.md`; verificar que nenhum trecho ainda prevê reconciliação ou retorno ao Supabase
-- [ ] 1.2 Escrever um ADR sobre a escolha de Cloud Run + Neon no lugar da VM Oracle, em `docs/decisions/`, e corrigir o ADR-005 e o `PLAN.md`; verificar com `git grep -i oracle` que só restam referências históricas
+- [x] 1.2 Escrever um ADR sobre a escolha de Cloud Run + Neon no lugar da VM Oracle, em `docs/decisions/`, e corrigir o ADR-005 e o `PLAN.md`; verificar com `git grep -i oracle` que só restam referências históricas
 - [ ] 1.3 **[Vinícius]** Criar o projeto no Google Cloud com faturamento, um alerta de US$ 1 para o projeto e um teto de gasto (_spend cap_) de US$ 5 para o Cloud Run; verificar que os dois aparecem ativos no console, conferir os preços usados em "Limites de custo" do design e levar qualquer diferença relevante à revisão da spec
 - [ ] 1.4 **[Vinícius]** Criar o projeto no Neon, em `aws-us-east-1`, sem cartão; verificar a conexão direta com `psql` usando TLS
 
@@ -18,12 +18,12 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 ## 3. Imagem e superfície pública
 
 - [x] 3.1 Criar `backend/Dockerfile` e verificar que a imagem sobe localmente contra um PostgreSQL e responde `GET /api/agenda`
-- [ ] 3.2 Escrever testes de integração para os cenários de "Superfície pública restrita", com `APP_PUBLIC_SURFACE=agenda-only` e sem ela, e verificar que falham antes da implementação
-- [ ] 3.3 Implementar o filtro antes da cadeia do Spring Security e verificar com os testes da 3.2 e com a imagem local que só `GET /api/agenda` responde
-- [ ] 3.4 Remover `deploy/compose.prod.yml`, `deploy/Caddyfile`, `deploy/.env.example`, `deploy/deploy.sh` e `deploy/oracle-create-vm.sh`, e a seção de cópia manual de `docs/deploy/backend-production.md`; verificar com `git grep` que nenhum arquivo ativo os referencia
-- [ ] 3.5 Escrever um teste de integração que encerre as conexões do pool com `pg_terminate_backend` e exija `200` em `/api/agenda` na requisição seguinte, usando as configurações de Hikari de produção; verificar que o teste passa e que falha com o banco realmente parado
-- [ ] 3.6 Criar `deploy/check-public-surface.sh` com todas as rotas e métodos do design; verificar que aprova a imagem local com `APP_PUBLIC_SURFACE=agenda-only` e reprova a mesma imagem sem a variável
-- [ ] 3.7 Criar `deploy/check-schema-compat.sh`; verificar que aprova as imagens atuais e reprova um par em que a nova imagem contém uma migration que remove uma coluna usada pela anterior
+- [x] 3.2 Escrever testes de integração para os cenários de "Superfície pública restrita", com `APP_PUBLIC_SURFACE=agenda-only` e sem ela, e verificar que falham antes da implementação
+- [x] 3.3 Implementar o filtro antes da cadeia do Spring Security e verificar com os testes da 3.2 e com a imagem local que só `GET /api/agenda` responde
+- [x] 3.4 Remover `deploy/compose.prod.yml`, `deploy/Caddyfile`, `deploy/.env.example`, `deploy/deploy.sh` e `deploy/oracle-create-vm.sh`, e a seção de cópia manual de `docs/deploy/backend-production.md`; verificar com `git grep` que nenhum arquivo ativo os referencia
+- [x] 3.5 Escrever um teste de integração que encerre as conexões do pool com `pg_terminate_backend` e exija `200` em `/api/agenda` na requisição seguinte, usando as configurações de Hikari de produção; verificar que o teste passa e que falha com o banco realmente parado
+- [x] 3.6 Criar `deploy/check-public-surface.sh` com todas as rotas e métodos do design; verificar que aprova a imagem local com `APP_PUBLIC_SURFACE=agenda-only` e reprova a mesma imagem sem a variável
+- [x] 3.7 Criar `deploy/check-schema-compat.sh`; verificar que aprova as imagens atuais e reprova um par em que a nova imagem contém uma migration que remove uma coluna usada pela anterior
 
 ## 4. Configuração do Google e deploy automático
 
@@ -43,13 +43,13 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 ## 6. Carga inicial
 
 - [ ] 6.1 **[Vinícius]** Revisar os dados de `public/agenda.json` e aprovar a lista; verificar com a aprovação registrada no PR
-- [ ] 6.2 Criar `deploy/seed/agenda-initial.sql` e um teste de integração que comprove carga em base vazia, falha sem alterações em base preenchida e tabelas administrativas vazias; verificar com o teste focado
-- [ ] 6.3 Criar um script reutilizável que compare `GET /api/agenda` com a carga versionada, verificando que ele detecta uma divergência simulada
+- [x] 6.2 Criar `deploy/seed/agenda-initial.sql` e um teste de integração que comprove carga em base vazia, falha sem alterações em base preenchida e tabelas administrativas vazias; verificar com o teste focado
+- [x] 6.3 Criar um script reutilizável que compare `GET /api/agenda` com a carga versionada, verificando que ele detecta uma divergência simulada
 - [ ] 6.4 Executar a carga no Neon com `psql` e verificar com o script da 6.3 que a agenda retorna os mesmos itens, na mesma ordem
 
 ## 7. Recriação do ambiente
 
-- [ ] 7.1 Documentar em `docs/deploy/backend-production.md` a recriação do ambiente e o fluxo de correção (versionar, revisar, aplicar e comparar); verificar subindo a mesma imagem em `amd64` com um PostgreSQL novo, fora do Google, com `/api/agenda` retornando os dados da carga
+- [x] 7.1 Documentar em `docs/deploy/backend-production.md` a recriação do ambiente e o fluxo de correção (versionar, revisar, aplicar e comparar); verificar subindo a mesma imagem em `amd64` com um PostgreSQL novo, fora do Google, com `/api/agenda` retornando os dados da carga
 
 ## 8. Corte do site
 
