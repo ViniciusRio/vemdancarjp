@@ -13,7 +13,7 @@ Origem: [mattpocock/skills, revisão 49dd158d1076134a641b33efb035946536778336](h
 
 1. Delimite o que será revisado. Para commits ou branches, valide a referência informada e a base de comparação. Se a base não for fornecida, identifique e declare a escolhida; se bases plausíveis diferentes mudarem materialmente o resultado, solicite confirmação antes da revisão. Para trabalho local, examine `git status`, `git diff --cached`, `git diff` e o conteúdo dos arquivos novos pertinentes. Separe mudanças preexistentes ou fora do escopo.
 2. Reúna os critérios: pedido do usuário, `AGENTS.md`, seção relevante de `PLAN.md`, ADRs, contratos e testes existentes. Se faltar um requisito essencial, declare a limitação; não invente um issue tracker nem um contrato.
-3. Revise o eixo **Padrões**: convenções documentadas, fronteiras de módulos, segurança, testes e fluxo de aprendizado. Verifique se `LEARNING.md` foi atualizado quando a mudança conclui um passo de `PLAN.md`.
+3. Revise o eixo **Padrões**: convenções documentadas, fronteiras de módulos, segurança, testes e handoff conforme `docs/AI-WORKFLOW.md`.
 4. Revise o eixo **Requisitos**: comportamentos pedidos, casos ausentes, regressões e alterações além do escopo. Confirme achados com trechos do diff e, quando útil, testes ou comandos de leitura.
 5. Apresente os dois eixos separadamente. Para cada achado, informe gravidade (`bloqueante`, `alta`, `média` ou `baixa`), arquivo e linha, evidência, impacto e correção sugerida. Distinga violação comprovada de hipótese ou preferência de estilo.
 

@@ -28,6 +28,5 @@ Stack atual (em migração):
 
 - `.env`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (frontend).
 - `.env.docker`: variáveis do backend Java/Postgres.
-- OpenRouter: chave configurada no OpenCode via `/connect` (não no `.env`).
 
 Veja também: [[arquitetura/autenticacao]], [[arquitetura/backend-java]], [[decisoes/2026-09-migracao-para-java]].

@@ -20,5 +20,3 @@ npm run lint && npm run type-check && npm run test:unit
 - **Build:** `npm run build` (`vue-tsc --build && vite build`)
 - **Testes unitários:** `npm run test:unit` (`vitest --passWithNoTests`)
 - **Teste isolado:** `npx vitest run path/to/file.spec.ts`
-
-No OpenCode, o comando `/verify` roda a sequência completa.

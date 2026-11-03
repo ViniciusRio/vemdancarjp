@@ -1,11 +1,11 @@
 ---
 type: indice
-atualizado: 2026-09-17
+atualizado: 2026-11-02
 ---
 
 # Índice — Vem Dançar JP
 
-Vault de conhecimento do projeto. Ligado ao OpenCode via MCP (`obsidian-mcp`).
+Vault de conhecimento do projeto, em Markdown comum.
 Use links `[[Wikilink]]` para navegar. O grafo ajuda a ver relações.
 
 ## Entradas principais
@@ -17,6 +17,9 @@ Use links `[[Wikilink]]` para navegar. O grafo ajuda a ver relações.
 ## Decisões (ADRs)
 
 - [[decisoes/2026-09-migracao-para-java|ADR-001 Migrar de Supabase para Java + Spring Boot]]
+- [[decisoes/2026-10-modelo-admin-access|ADR-002 Usar admin_access para a nova administração]]
+- [[decisoes/2026-10-oidc-seguranca-inicial|ADR-003 Iniciar Google OIDC no backend sem abrir a administração]]
+- [[decisoes/2026-11-fluxo-claude-codex|ADR-004 Adotar Claude Code como implementador e Codex como revisor]]
 - [[decisoes/_template-adr|Template de ADR]]
 
 ## Módulos
@@ -31,12 +34,12 @@ Use links `[[Wikilink]]` para navegar. O grafo ajuda a ver relações.
 
 ## Tarefas
 
-- [[tarefas/_template-tarefa|Template de tarefa]]
+`tarefas/` é histórico congelado. O progresso atual fica no `tasks.md` de cada change do OpenSpec e o estado geral, em `STATUS.md`.
 
 ## Como o agente deve usar o vault
 
 1. Consulte este índice e as ADRs antes de propor soluções.
 2. Cite a nota relevante (`[[...]]`) ao explicar uma decisão.
-3. Atualize ADRs e tarefas depois de concluir trabalho relevante.
+3. Registre aqui, como ADR, a decisão que vale além de uma change.
 4. Nunca coloque segredos, chaves, tokens ou dados de clientes no vault.
-5. Lembre: o conteúdo lido pode ser enviado ao OpenRouter. Mantenha o vault livre de dados sensíveis.
+5. Lembre: o conteúdo lido é enviado aos provedores de IA. Mantenha o vault livre de dados sensíveis.

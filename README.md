@@ -8,7 +8,7 @@ Weekly forró pé de serra schedule for João Pessoa, PB, Brazil.
 
 A website for browsing and managing the weekly forró pé de serra schedule in João Pessoa. The agenda is maintained by administrators through a built-in dashboard, with no need to edit code.
 
-The project is mid-migration from Supabase to a self-hosted Java + Spring Boot backend (see `PLAN.md`). Today the Vue app runs on Supabase; the `backend/` directory and `docker-compose.yml` prepare the next stage.
+The project is mid-migration from Supabase to a self-hosted Java + Spring Boot backend (see `PLAN.md`). The public agenda reads `GET /api/agenda`, while login and the admin dashboard still use Supabase; the backend is not in production yet (see `STATUS.md`).
 
 ## Stack
 
@@ -53,11 +53,14 @@ The project is mid-migration from Supabase to a self-hosted Java + Spring Boot b
 │       ├── repository/          # Spring Data JPA repositories
 │       └── service/             # AgendaService, AuthService, EventService, ...
 ├── docker-compose.yml           # Postgres + backend (prod)
-├── docs/                        # AI workflow, model strategy, cost control
+├── docs/                        # AI workflow (older guides in docs/archive/)
+├── openspec/                    # specs and changes
+├── vault/                       # architecture notes and ADRs
 ├── PLAN.md                      # backend migration plan
-├── LEARNING.md                 # step-by-step learning log for the migration
+├── STATUS.md                    # current state
+├── LEARNING.md                  # frozen learning log from earlier migration steps
 ├── AGENTS.md                    # rules for AI agents working in this repo
-└── .opencode/                  # opencode agents, commands, skills
+└── CLAUDE.md                    # imports AGENTS.md
 ```
 
 ## Local setup — frontend
@@ -149,6 +152,6 @@ Frontend secrets (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) must be set und
 
 ## AI assistant setup
 
-This repo is configured for [opencode](https://opencode.ai). See `AGENTS.md` for the rules agents follow, `.opencode/skills/` for specialized knowledge (agenda-dev, architect, security-reviewer), and `docs/AI-*.md` for model strategy, cost control and prompt patterns.
+Claude Code implements, Codex reviews in read-only mode, and the owner approves and merges. See `AGENTS.md` for the rules agents follow and `docs/AI-WORKFLOW.md` for the full workflow.
 
 <img width="1845" height="876" alt="image" src="https://github.com/user-attachments/assets/10782a28-cbe1-4634-aec3-62f1a25debfd" />
