@@ -59,3 +59,8 @@ backend/bin
 
 # Docker
 .env.docker
+
+# Obsidian vault — rastreamos notas (.md), ignoramos estado local do app e do MCP.
+vault/.obsidian/*
+!vault/.obsidian/.gitkeep
+vault/.obsidian-mcp/
