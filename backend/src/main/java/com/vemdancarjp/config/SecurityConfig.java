@@ -25,11 +25,15 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -78,6 +82,7 @@ public class SecurityConfig {
             .exceptionHandling(errors -> errors
                 .authenticationEntryPoint(unauthorized)
                 .accessDeniedHandler(forbidden))
+            .cors(cors -> cors.configurationSource(agendaCorsSource(frontendUrl)))
             .csrf(Customizer.withDefaults())
             .formLogin(AbstractHttpConfigurer::disable)
             .httpBasic(AbstractHttpConfigurer::disable)
@@ -112,12 +117,7 @@ public class SecurityConfig {
             if (clientSecret.isBlank()) {
                 throw new IllegalStateException("Google OAuth2 client secret must be configured");
             }
-            URI target = URI.create(frontendUrl);
-            if (!target.isAbsolute() || target.getHost() == null ||
-                    !("http".equals(target.getScheme()) || "https".equals(target.getScheme())) ||
-                    target.getUserInfo() != null || target.getFragment() != null) {
-                throw new IllegalStateException("APP_FRONTEND_URL must be an absolute HTTP(S) URL");
-            }
+            URI target = parseFrontendUrl(frontendUrl);
             http.oauth2Login(login -> login
                 .successHandler((request, response, authentication) -> response.sendRedirect(target.toString()))
                 .failureHandler((request, response, exception) ->
@@ -125,6 +125,32 @@ public class SecurityConfig {
         }
 
         return http.build();
+    }
+
+    private static URI parseFrontendUrl(String frontendUrl) {
+        URI target = URI.create(frontendUrl);
+        if (!target.isAbsolute() || target.getHost() == null ||
+                !("http".equals(target.getScheme()) || "https".equals(target.getScheme())) ||
+                target.getUserInfo() != null || target.getFragment() != null) {
+            throw new IllegalStateException("APP_FRONTEND_URL must be an absolute HTTP(S) URL");
+        }
+        return target;
+    }
+
+    private static CorsConfigurationSource agendaCorsSource(String frontendUrl) {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        if (frontendUrl.isBlank()) {
+            return source;
+        }
+        URI target = parseFrontendUrl(frontendUrl);
+        String origin = target.getScheme() + "://" + target.getHost() +
+            (target.getPort() == -1 ? "" : ":" + target.getPort());
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of(origin));
+        configuration.setAllowedMethods(List.of(HttpMethod.GET.name()));
+        configuration.setAllowCredentials(false);
+        source.registerCorsConfiguration("/api/agenda", configuration);
+        return source;
     }
 
     private static void writeError(HttpServletResponse response, int status, String code) throws IOException {

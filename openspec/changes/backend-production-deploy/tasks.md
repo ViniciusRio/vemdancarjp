@@ -4,15 +4,15 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 
 ## 1. Decisão e pré-requisitos
 
-- [ ] 1.1 Escrever o ADR-005 sobre o abandono do Supabase, o descarte dos seus dados e a ausência temporária de backup e monitoramento em `docs/decisions/` e atualizar a seção de Rollback e o Passo 10 do `PLAN.md`; verificar que nenhum trecho ainda prevê reconciliação ou retorno ao Supabase
+- [x] 1.1 Escrever o ADR-005 sobre o abandono do Supabase, o descarte dos seus dados e a ausência temporária de backup e monitoramento em `docs/decisions/` e atualizar a seção de Rollback e o Passo 10 do `PLAN.md`; verificar que nenhum trecho ainda prevê reconciliação ou retorno ao Supabase
 - [ ] 1.2 **[Vinícius]** Criar a VM Ampere A1 (1 OCPU, 4 GB, Ubuntu LTS `arm64`) na conta Oracle, usando `deploy/oracle-create-vm.sh` enquanto faltar capacidade; verificar com acesso SSH por chave
 - [ ] 1.3 **[Vinícius]** Criar o registro `api.vemdancarjp.com.br` no Registro.br apontando para o IP da VM; verificar resolução por DNS público
 
 ## 2. CORS da agenda
 
-- [ ] 2.1 Escrever testes de integração para os cenários de "Origem permitida para a agenda" e verificar que falham antes da implementação
-- [ ] 2.2 Implementar o CORS restrito a `GET /api/agenda`, derivado de `APP_FRONTEND_URL`, e verificar com os testes da 2.1
-- [ ] 2.3 Cobrir os casos de variável ausente (nenhuma origem autorizada) e URL inválida (falha na inicialização) e verificar com `./gradlew test --tests "*SecurityConfig*" -q`
+- [x] 2.1 Escrever testes de integração para os cenários de "Origem permitida para a agenda" e verificar que falham antes da implementação
+- [x] 2.2 Implementar o CORS restrito a `GET /api/agenda`, derivado de `APP_FRONTEND_URL`, e verificar com os testes da 2.1
+- [x] 2.3 Cobrir os casos de variável ausente (nenhuma origem autorizada) e URL inválida (falha na inicialização) e verificar com `./gradlew test --tests "*SecurityConfig*" -q`
 
 ## 3. Imagem e ambiente de produção
 

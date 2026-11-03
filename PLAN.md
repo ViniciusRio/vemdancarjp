@@ -2,7 +2,7 @@
 
 ## Contexto
 
-Hoje a app Vue 3 usa Supabase para auth (Google OAuth) e escritas administrativas, com RLS para autorização dessas escritas. A consulta pública `GET /api/agenda` já foi integrada localmente ao backend Java e seu PostgreSQL, com testes de integração; o backend ainda não tem deploy de produção. Este plano prevê uma nova base de identidades administrativas no Java, sem importar contas ou permissões do Supabase, e a migração dos dados públicos da agenda. O Supabase permanece operacional até validar os substitutos e o corte dos dados.
+Hoje a app Vue 3 usa Supabase para auth (Google OAuth) e escritas administrativas, com RLS para autorização dessas escritas. A consulta pública `GET /api/agenda` já foi integrada localmente ao backend Java e seu PostgreSQL, com testes de integração; o backend ainda não tem deploy de produção. Este plano prevê uma nova base de identidades administrativas no Java, sem importar contas ou permissões do Supabase, e a migração dos dados públicos da agenda. O Supabase foi abandonado e seus dados, descartados (ADR-005); o login e o painel seguem quebrados em produção até o corte do frontend.
 
 **Frontend permanece Vue 3 + Pinia + Vite + Tailwind v4.** A integração futura troca as chamadas Supabase ainda usadas por `authStore`, composables administrativos e serviços por chamadas ao backend Java; `agendaService.ts` já consulta `/api/agenda`.
 
@@ -148,7 +148,7 @@ CREATE INDEX idx_events_day_id     ON events(day_id);
 CREATE INDEX idx_events_sort_order ON events(sort_order);
 ```
 
-> **Dados:** a V1 contém apenas DDL e mostra o esquema inicial, não a futura base administrativa. Preservar e reconciliar `events`, `variable_venues` e `other_venues` na migração da agenda. Não importar `admins`, `pending_admins`, contas ou identificadores do Supabase; a nova aprovação administrativa começa no backend e não pode ser inferida de emails ou linhas legadas.
+> **Dados:** a V1 contém apenas DDL e mostra o esquema inicial, não a futura base administrativa. Os dados de `events`, `variable_venues` e `other_venues` vêm da carga inicial versionada (ADR-005). Não importar `admins`, `pending_admins`, contas ou identificadores do Supabase; a nova aprovação administrativa começa no backend e não pode ser inferida de emails ou linhas legadas.
 
 ## Endpoints da API
 
@@ -236,7 +236,7 @@ O backend (`AgendaService`) já faz o agrupamento por `day_id` e a tradução do
 
 ## Docker
 
-O frontend permanece no GitHub Pages com domínio próprio. Para a API, consideram-se provisoriamente hospedagem gerenciada no Railway, possível endereço `api.vemdancarjp.com.br` e PostgreSQL persistente. Nada disso está contratado ou configurado. A escolha final de infraestrutura deve preceder a configuração de domínio, HTTPS, cookies, CORS, persistência de dados e sessões.
+O frontend permanece no GitHub Pages com domínio próprio. A API fica em uma VM do Oracle Cloud Always Free, em `api.vemdancarjp.com.br`, somente em planos gratuitos durante o desenvolvimento (ADR-005). Detalhes em `openspec/changes/backend-production-deploy/`.
 
 ### `docker-compose.yml` (exemplo planejado; backend ainda não configurado)
 
@@ -416,8 +416,8 @@ Cada item abaixo é um **Passo** numerado.
 7. **Passo 7 — OAuth2 Login, sessão e proteção inicial** — etapa 7B implementou o início do Google OIDC condicionado à configuração, sessão necessária ao fluxo, CSRF, erros JSON 401/403, negação das rotas administrativas e acesso público a `GET /api/agenda`. A etapa 7C adicionou consulta da sessão OIDC com leitura atual de `admin_access`, obtenção do token CSRF e logout local com invalidação da sessão, todos testados. A etapa 7D.1 adicionou e testou uma política reutilizável que reavalia `APPROVED` pelo `sub` em cada chamada, sem conectá-la às rotas; `/api/admin/**` continua em `denyAll`. Ainda faltam proteção HTTP explícita de operações administrativas reais, bootstrap controlado, cookies e CORS conforme a origem confirmada e testes de login completo e expiração; não há endpoint público de autoaprovação.
 8. **Passo 8 — CRUD admin protegido** — implementar escrita de events e venues somente com sessão e aprovação verificadas no backend. Testar autorização e persistência junto de cada endpoint; não publicar CRUD administrativo sem esses testes.
 9. **Passo 9 — Gestão administrativa protegida** — implementar solicitação de acesso, listagem, aprovação transacional, rejeição e revogação exclusivamente no backend, usando a nova base administrativa. Testar usuário pendente, autoaprovação, falha parcial, revogação de sessão ativa e concorrência; não importar pendências ou aprovações do Supabase.
-10. **Passo 10 — Corte da agenda e conexão do frontend** — definir fonte de verdade e reconciliação de `events`, `variable_venues` e `other_venues` entre Supabase e PostgreSQL antes do corte das escritas; conectar `authStore` e composables administrativos à nova API por sessão e CSRF. `agendaService.ts` já consulta `/api/agenda`. Validar dados públicos, novo login, nova administração e agenda pública antes de retirar qualquer dependência Supabase.
-11. **Passo 11 — Verificação complementar** — ampliar testes unitários, de integração e manuais dos fluxos completos, além dos testes de segurança já exigidos nos Passos 7–9. Confirmar rollback dos dados da agenda e do frontend, incluindo o efeito sobre contas criadas apenas na nova base administrativa, antes de desativar o Supabase.
+10. **Passo 10 — Corte da agenda e conexão do frontend** — garantir backup e monitoramento de produção antes de reabrir escritas (ADR-005); conectar `authStore` e composables administrativos à nova API por sessão e CSRF. `agendaService.ts` já consulta `/api/agenda`. Validar novo login, nova administração e agenda pública, e então remover o SDK, os secrets e o código do Supabase.
+11. **Passo 11 — Verificação complementar** — ampliar testes unitários, de integração e manuais dos fluxos completos, além dos testes de segurança já exigidos nos Passos 7–9. Confirmar a recuperação dos dados da agenda e das contas da nova base administrativa a partir de backup.
 
 ## Comandos Úteis (Gradle)
 
@@ -452,9 +452,7 @@ Ao conectar o frontend ao backend Java, estes arquivos mudam:
 
 ## Rollback
 
-Antes do corte, identificar a fonte de verdade de `events`, `variable_venues` e `other_venues`, obter backup e comparar os dados públicos importados. Durante a transição, evitar escritas simultâneas sem reconciliação definida: a agenda pública já lê PostgreSQL no backend, enquanto o painel ainda escreve no Supabase. As tabelas administrativas legadas não são fonte de dados para importação.
-
-Se o corte falhar, interromper novas escritas na agenda de destino, reconciliar as alterações públicas ocorridas desde o último ponto comum e só então redirecionar o frontend para o fluxo anterior. Reverter chamadas ou URL sem reconciliar dados pode perder alterações ou deixar a agenda pública divergente. O retorno temporário ao login e à administração Supabase usa somente as contas e aprovações que ainda existirem lá: administradores criados apenas no backend não terão acesso legado automaticamente, e mudanças de aprovação entre as bases exigem revisão manual. Manter o Supabase operacional até validar o substituto e o procedimento de retorno. Mudanças de esquema devem ser aditivas e reversíveis sem editar a V1 aplicada.
+Não há retorno ao Supabase (ADR-005). Enquanto o painel estiver fora do ar, a agenda é recriada pela carga versionada em `deploy/seed/`, e toda correção entra nela antes de ir para o banco. O backend volta a uma imagem anterior por digest; mudanças de esquema devem ser aditivas e reversíveis sem editar a V1 aplicada. Antes de reabrir escritas pelo painel, a recuperação passa a depender de backup e deve ser testada.
 
 ## Decisões diferidas (fora do escopo deste plano)
 

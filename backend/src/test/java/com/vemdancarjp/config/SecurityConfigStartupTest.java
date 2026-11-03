@@ -32,6 +32,18 @@ class SecurityConfigStartupTest {
     }
 
     @Test
+    void invalidFrontendUrlDoesNotStartWithoutLogin() {
+        contextRunner.withPropertyValues("APP_FRONTEND_URL=vemdancarjp.com.br")
+            .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void validFrontendUrlStartsWithoutLogin() {
+        contextRunner.withPropertyValues("APP_FRONTEND_URL=https://vemdancarjp.com.br")
+            .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
     void absentGoogleConfigurationStartsWithoutLogin() {
         contextRunner.run(context -> {
             assertThat(context).hasNotFailed();
