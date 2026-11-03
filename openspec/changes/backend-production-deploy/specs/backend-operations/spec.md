@@ -2,15 +2,15 @@
 
 ## Purpose
 
-Definir como o backend de produção é atualizado, revertido e recriado, para que a perda do servidor não cause perda de dados enquanto toda a agenda vier de uma fonte versionada.
+Definir como o backend de produção é atualizado, revertido, mantido dentro dos planos gratuitos e recriado, para que a perda do ambiente não cause perda de dados enquanto toda a agenda vier de uma fonte versionada.
 
 ## ADDED Requirements
 
 ### Requirement: Deploy a partir da main
-O backend SHALL ser atualizado em produção automaticamente após merge na `main` que altere o backend ou sua configuração de deploy, e somente se os testes do backend passarem.
+O backend SHALL ser atualizado em produção automaticamente após merge na `main` que altere o backend ou seu workflow de deploy, e somente se os testes do backend passarem. Uma nova versão SHALL receber tráfego somente depois de responder corretamente em um endereço próprio de teste.
 
 #### Scenario: Merge com testes aprovados
-- **WHEN** um merge na `main` altera `backend/` ou `deploy/` e os testes passam
+- **WHEN** um merge na `main` altera `backend/` ou o workflow de deploy do backend e os testes passam
 - **THEN** a nova versão entra em produção e a agenda responde `200` ao final do deploy
 
 #### Scenario: Testes falham
@@ -19,22 +19,22 @@ O backend SHALL ser atualizado em produção automaticamente após merge na `mai
 
 #### Scenario: Nova versão não sobe
 - **WHEN** a nova versão não responde `200` em `/api/agenda` dentro do tempo limite
-- **THEN** o workflow falha e a versão anterior volta a rodar
+- **THEN** o workflow falha e o tráfego continua na versão anterior
 
-#### Scenario: Merge altera a configuração do servidor
-- **WHEN** um merge altera `deploy/compose.prod.yml`, `deploy/Caddyfile` ou `deploy/deploy.sh`
-- **THEN** a mudança só vale na produção depois da cópia manual descrita em `docs/deploy/backend-production.md`
+#### Scenario: Nova versão expõe outras rotas
+- **WHEN** a nova versão responde em `/api/admin/events` com qualquer status diferente de `404`
+- **THEN** o workflow falha e o tráfego continua na versão anterior
 
 ### Requirement: Deploy exclusivo
-Somente um deploy, automático ou manual, SHALL atuar em produção por vez. O retorno automático de uma tentativa que falhou SHALL restaurar a última versão que estava em execução no início dessa tentativa exclusiva.
+Somente um deploy, automático ou manual, SHALL atuar em produção por vez. Uma tentativa que falha SHALL manter o tráfego na última versão válida.
 
 #### Scenario: Dois deploys ao mesmo tempo
 - **WHEN** um deploy é disparado enquanto outro está em andamento
-- **THEN** o segundo só atua no servidor depois que o primeiro terminar, ou falha sem alterar a produção
+- **THEN** o segundo só atua em produção depois que o primeiro terminar
 
 #### Scenario: Falha depois de um deploy válido
 - **WHEN** um deploy válido termina e o deploy seguinte falha ao subir
-- **THEN** a produção volta à versão publicada pelo deploy válido
+- **THEN** a produção continua na versão publicada pelo deploy válido
 
 ### Requirement: Rollback por versão anterior
 Vinícius SHALL poder voltar o backend a uma imagem já publicada, sem novo build.
@@ -44,28 +44,47 @@ Vinícius SHALL poder voltar o backend a uma imagem já publicada, sem novo buil
 - **THEN** essa imagem passa a rodar em produção, desde que seja compatível com o schema atual do banco
 
 ### Requirement: Credencial de automação limitada
-A credencial usada pelo workflow de deploy SHALL permitir no servidor somente a operação de deploy e não SHALL dar acesso a um shell nem a serviços internos.
+A credencial usada pelo workflow de deploy SHALL permitir somente o deploy do serviço do backend, a partir da `main` deste repositório, sem chave de longa duração guardada no GitHub e sem acesso ao banco.
 
-#### Scenario: Comando fora do previsto
-- **WHEN** a chave de automação tenta executar qualquer comando diferente da operação de deploy
-- **THEN** o servidor não executa esse comando
+#### Scenario: Execução fora da main
+- **WHEN** um workflow de outra branch ou de outro repositório tenta obter a credencial
+- **THEN** o provedor recusa a credencial
 
-#### Scenario: Tentativa de túnel
-- **WHEN** a chave de automação tenta abrir um encaminhamento de portas até um serviço interno, como o PostgreSQL
-- **THEN** o servidor recusa o encaminhamento
+#### Scenario: Operação fora do previsto
+- **WHEN** a credencial tenta alterar outro serviço ou ler a senha do banco
+- **THEN** o provedor recusa a operação
 
 ### Requirement: Segredos fora do repositório
-Senhas e chaves de produção SHALL ficar somente no servidor ou nos secrets do GitHub, nunca em arquivos versionados, logs ou imagens.
+Senhas e chaves de produção SHALL ficar somente no gerenciador de segredos do provedor, nunca em arquivos versionados, logs, imagens ou na configuração visível do serviço.
 
-#### Scenario: Variável obrigatória ausente
-- **WHEN** a produção é iniciada sem a senha do banco configurada
-- **THEN** a inicialização falha, sem usar a senha padrão de desenvolvimento
+#### Scenario: Senha indisponível
+- **WHEN** uma nova versão é iniciada sem acesso à senha do banco
+- **THEN** ela não recebe tráfego, e a senha padrão de desenvolvimento não é aceita pela base de produção
+
+### Requirement: Custo dentro dos planos gratuitos
+A produção SHALL escalar a zero quando parada, SHALL usar no máximo uma instância e SHALL ter um alerta de orçamento ativo. Atingir um limite de plano gratuito do banco SHALL interromper o serviço, sem perda de dados e sem gerar cobrança no banco.
+
+#### Scenario: Sem acessos
+- **WHEN** a API passa um período sem requisições
+- **THEN** nenhuma instância fica cobrando CPU ou memória
+
+#### Scenario: Pico de acessos
+- **WHEN** chegam mais requisições do que uma instância consegue atender
+- **THEN** o serviço não cria uma segunda instância, mesmo que algumas requisições falhem
+
+#### Scenario: Gasto acima de zero
+- **WHEN** o projeto no provedor registra qualquer cobrança acima do valor configurado no alerta
+- **THEN** Vinícius recebe um aviso do alerta de orçamento
+
+#### Scenario: Limite do banco atingido
+- **WHEN** o banco atinge o limite mensal do plano gratuito
+- **THEN** a API responde com erro, a home mostra a mensagem de erro de carregamento e nenhum dado é perdido
 
 ### Requirement: Base recriável a partir do repositório
 O conteúdo da agenda em produção SHALL ser sempre reproduzível pela carga versionada, de modo que nenhuma correção chegue ao banco sem antes estar nessa carga.
 
-#### Scenario: Recriação em servidor novo
-- **WHEN** a produção é recriada em um servidor novo, com banco vazio, seguindo a documentação
+#### Scenario: Recriação em um ambiente novo
+- **WHEN** a produção é recriada em um ambiente novo, com banco vazio, seguindo a documentação
 - **THEN** depois da carga versionada, `GET /api/agenda` retorna os mesmos dados da produção anterior
 
 #### Scenario: Correção na agenda
@@ -77,8 +96,8 @@ O conteúdo da agenda em produção SHALL ser sempre reproduzível pela carga ve
 - **THEN** uma comparação automatizada confirma que `GET /api/agenda` retorna os mesmos dados da carga versionada
 
 ### Requirement: Produção portátil
-A produção SHALL funcionar em `arm64` e `amd64`, sem configuração específica da Oracle na aplicação, para permitir a recriação em outro ambiente.
+A imagem de produção SHALL funcionar em qualquer servidor `amd64` com um PostgreSQL padrão, sem configuração específica do provedor na aplicação, para permitir a recriação em outro ambiente.
 
-#### Scenario: Subida em servidor amd64
-- **WHEN** a mesma versão é iniciada em um servidor `amd64` com banco vazio e a carga versionada
+#### Scenario: Subida fora do provedor
+- **WHEN** a mesma imagem é iniciada em um servidor `amd64` com banco vazio e a carga versionada
 - **THEN** `GET /api/agenda` responde `200` com os dados da carga

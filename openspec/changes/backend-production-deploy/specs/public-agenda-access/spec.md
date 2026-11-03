@@ -13,6 +13,10 @@ O site publicado SHALL obter a agenda em `https://api.vemdancarjp.com.br/api/age
 - **WHEN** um visitante abre `https://vemdancarjp.com.br/` com o backend disponível
 - **THEN** a página exibe os eventos e locais retornados pela API, sem a mensagem de erro de carregamento
 
+#### Scenario: Backend acordando
+- **WHEN** um visitante abre a home com a aplicação parada por falta de acessos
+- **THEN** a página mostra o estado de carregamento até a API responder e depois exibe os eventos, sem a mensagem de erro
+
 #### Scenario: Backend indisponível
 - **WHEN** a API não responde ou responde com erro
 - **THEN** a página continua abrindo e mostra a mensagem de erro de carregamento
@@ -41,18 +45,22 @@ A API SHALL autorizar por CORS somente a origem configurada do site na leitura d
 - **THEN** a resposta não contém cabeçalhos de CORS que autorizem essa origem
 
 ### Requirement: Superfície pública restrita
-Em produção, o domínio da API SHALL encaminhar à aplicação somente `GET /api/agenda` e SHALL recusar todo o resto, enquanto a administração não for publicada por uma change própria.
+Em produção, a aplicação SHALL responder somente a `GET /api/agenda` e SHALL devolver `404` a todo o resto antes de executar qualquer operação, em qualquer endereço do serviço, enquanto a administração não for publicada por uma change própria.
 
 #### Scenario: Rota administrativa em produção
-- **WHEN** alguém acessa `/api/admin/events`, `/api/auth/session`, `/api/auth/csrf` ou `/oauth2/authorization/google` no domínio da API
-- **THEN** a resposta é `404` e a requisição não chega à aplicação
+- **WHEN** alguém acessa `/api/admin/events`, `/api/auth/session`, `/api/auth/csrf` ou `/oauth2/authorization/google` no domínio da API ou no endereço padrão do serviço
+- **THEN** a resposta é `404`
 
 #### Scenario: Método diferente de GET na agenda
-- **WHEN** alguém envia `POST` ou `DELETE` para `/api/agenda` no domínio da API
-- **THEN** a resposta é um erro e nenhum dado é alterado
+- **WHEN** alguém envia `POST` ou `DELETE` para `/api/agenda`
+- **THEN** a resposta é `404` e nenhum dado é alterado
 
-#### Scenario: Banco não exposto
-- **WHEN** alguém tenta conectar na porta do PostgreSQL pelo IP público do servidor
+#### Scenario: Fora de produção
+- **WHEN** a aplicação roda sem a restrição, como no desenvolvimento e nos testes
+- **THEN** as demais rotas continuam protegidas somente pelas regras de autenticação e autorização existentes
+
+#### Scenario: Banco protegido
+- **WHEN** alguém tenta conectar ao banco de produção sem TLS ou sem credencial válida
 - **THEN** a conexão não é aceita
 
 ### Requirement: Acesso somente por HTTPS

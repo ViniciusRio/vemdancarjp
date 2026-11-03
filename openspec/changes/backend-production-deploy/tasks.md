@@ -5,8 +5,9 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 ## 1. Decisão e pré-requisitos
 
 - [x] 1.1 Escrever o ADR-005 sobre o abandono do Supabase, o descarte dos seus dados e a ausência temporária de backup e monitoramento em `docs/decisions/` e atualizar a seção de Rollback e o Passo 10 do `PLAN.md`; verificar que nenhum trecho ainda prevê reconciliação ou retorno ao Supabase
-- [ ] 1.2 **[Vinícius]** Criar a VM Ampere A1 (1 OCPU, 2 GB, Ubuntu LTS `arm64`) na conta Oracle, usando `deploy/oracle-create-vm.sh` enquanto faltar capacidade; verificar com acesso SSH por chave
-- [ ] 1.3 **[Vinícius]** Criar o registro `api.vemdancarjp.com.br` no Registro.br apontando para o IP da VM; verificar resolução por DNS público
+- [ ] 1.2 Escrever um ADR sobre a escolha de Cloud Run + Neon no lugar da VM Oracle, em `docs/decisions/`, e corrigir o ADR-005 e o `PLAN.md`; verificar com `git grep -i oracle` que só restam referências históricas
+- [ ] 1.3 **[Vinícius]** Criar o projeto no Google Cloud com faturamento e um alerta de orçamento de valor baixo; verificar que o alerta aparece ativo no console
+- [ ] 1.4 **[Vinícius]** Criar o projeto no Neon, em `aws-us-east-1`, sem cartão; verificar a conexão direta com `psql` usando TLS
 
 ## 2. CORS da agenda
 
@@ -14,46 +15,49 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 - [x] 2.2 Implementar o CORS restrito a `GET /api/agenda`, derivado de `APP_FRONTEND_URL`, e verificar com os testes da 2.1
 - [x] 2.3 Cobrir os casos de variável ausente (nenhuma origem autorizada) e URL inválida (falha na inicialização) e verificar com `./gradlew test --tests "*SecurityConfig*" -q`
 
-## 3. Imagem e ambiente de produção
+## 3. Imagem e superfície pública
 
 - [x] 3.1 Criar `backend/Dockerfile` e verificar que a imagem sobe localmente contra um PostgreSQL e responde `GET /api/agenda`
-- [x] 3.2 Criar `deploy/compose.prod.yml` com limites de memória, volumes persistentes, sem portas de banco publicadas e com `${VAR:?}` nas variáveis obrigatórias; verificar com `docker compose config` que a ausência da senha falha
-- [x] 3.3 Criar `deploy/Caddyfile` e verificar localmente que só `GET /api/agenda` chega à aplicação e que as demais rotas e métodos recebem erro, conforme "Superfície pública restrita"
-- [x] 3.4 Criar `deploy/.env.example` sem valores reais e verificar que `.env` de produção está coberto pelo `.gitignore`
-- [ ] 3.5 Documentar em `docs/deploy/backend-production.md` a preparação do servidor (SSH só por chave, atualizações automáticas, firewall da VCN e iptables) e verificar seguindo o documento na VM
-- [ ] 3.6 Aplicar a preparação na VM e verificar de fora que só as portas 22, 80 e 443 respondem e que a do PostgreSQL está fechada
+- [ ] 3.2 Escrever testes de integração para os cenários de "Superfície pública restrita", com `APP_PUBLIC_SURFACE=agenda-only` e sem ela, e verificar que falham antes da implementação
+- [ ] 3.3 Implementar o filtro antes da cadeia do Spring Security e verificar com os testes da 3.2 e com a imagem local que só `GET /api/agenda` responde
+- [ ] 3.4 Remover `deploy/compose.prod.yml`, `deploy/Caddyfile`, `deploy/.env.example`, `deploy/deploy.sh` e `deploy/oracle-create-vm.sh`, e a seção de cópia manual de `docs/deploy/backend-production.md`; verificar com `git grep` que nenhum arquivo ativo os referencia
 
-## 4. Deploy automático
+## 4. Configuração do Google e deploy automático
 
-- [x] 4.1 Criar o script de deploy com `flock`, validação do digest, dump prévio, teste da agenda e volta à imagem anterior lida depois da trava; verificar localmente com uma imagem boa, uma que falha ao subir e duas execuções simultâneas
-- [ ] 4.2 Criar a chave de deploy com `restrict,command=` e verificar que outro comando enviado por ela não é executado e que `ssh -L` até o PostgreSQL é recusado
-- [x] 4.3 Criar `.github/workflows/deploy-backend.yml` (testes, JAR, imagem `arm64` e `amd64`, GHCR, deploy por digest, `concurrency` sem cancelamento), acionado por `push` na `main` em `backend/**` e `deploy/**` e por `workflow_dispatch`; verificar com `actionlint` ou revisão da sintaxe antes do merge
+- [ ] 4.1 Documentar em `docs/deploy/backend-production.md` a criação do serviço (1 vCPU, 512 MiB, cobrança por requisição, 0 a 1 instância, `--cpu-boost`, sonda em `/api/agenda`), do segredo e da identidade do workflow; verificar seguindo o documento no projeto do Google
+- [ ] 4.2 Configurar a Workload Identity Federation e verificar que a credencial só é obtida a partir da `main` deste repositório e que ela não altera outro serviço nem lê o segredo
+- [ ] 4.3 Reescrever `.github/workflows/deploy-backend.yml` (testes, JAR, imagem `amd64`, GHCR, revisão sem tráfego por digest, testes de `200` na agenda e `404` em `/api/admin/events`, troca de tráfego, `concurrency` sem cancelamento), acionado por `push` na `main` em `backend/**` e no próprio workflow e por `workflow_dispatch`; verificar com `actionlint`
 - [ ] 4.4 Abrir o PR de infraestrutura com o handoff e verificar lint, type-check, testes do frontend e do backend passando
-- [ ] 4.5 **[Vinícius]** Aprovar os secrets no GitHub, criar o `.env` na VM e fazer o merge do PR de infraestrutura; verificar que o workflow conclui e que `https://api.vemdancarjp.com.br/api/agenda` responde `200`
-- [x] 4.7 Documentar em `docs/deploy/backend-production.md` a cópia manual de `compose.prod.yml`, `Caddyfile` e `deploy.sh` e verificar a interpolação dos dois arquivos de ambiente com `docker compose config`
-- [ ] 4.6 Testar um rollback real por `workflow_dispatch` para o digest anterior e verificar a versão em execução
+- [ ] 4.5 **[Vinícius]** Fazer o merge do PR de infraestrutura e tornar o pacote do GHCR público, se preciso; verificar que o workflow conclui e que o endereço `run.app` responde `200` em `/api/agenda`
+- [ ] 4.6 Testar uma versão que falha ao subir e um rollback real por `workflow_dispatch` para o digest anterior; verificar que o tráfego fica na versão válida e conferir a versão em execução
 
-## 5. Carga inicial
+## 5. Domínio
 
-- [ ] 5.1 **[Vinícius]** Revisar os dados de `public/agenda.json` e aprovar a lista; verificar com a aprovação registrada no PR
-- [ ] 5.2 Criar `deploy/seed/agenda-initial.sql` e um teste de integração que comprove carga em base vazia, falha sem alterações em base preenchida e tabelas administrativas vazias; verificar com o teste focado
-- [ ] 5.3 Criar um script reutilizável que compare `GET /api/agenda` com a carga versionada, verificando que ele detecta uma divergência simulada
-- [ ] 5.4 Executar a carga na produção e verificar com o script da 5.3 que a agenda retorna os mesmos itens, na mesma ordem
+- [ ] 5.1 **[Vinícius]** Verificar a propriedade de `vemdancarjp.com.br` no Google e criar o CNAME `api` no Registro.br, conforme o mapeamento do serviço; verificar resolução por DNS público
+- [ ] 5.2 Mapear `api.vemdancarjp.com.br` ao serviço e verificar o certificado válido, `200` em `/api/agenda` e o redirecionamento de HTTP para HTTPS
 
-## 6. Recriação do ambiente
+## 6. Carga inicial
 
-- [ ] 6.1 Documentar em `docs/deploy/backend-production.md` a recriação do ambiente e o fluxo de correção (versionar, revisar, aplicar e comparar); verificar seguindo o documento em um ambiente `amd64` novo, com `/api/agenda` retornando os dados da carga
+- [ ] 6.1 **[Vinícius]** Revisar os dados de `public/agenda.json` e aprovar a lista; verificar com a aprovação registrada no PR
+- [ ] 6.2 Criar `deploy/seed/agenda-initial.sql` e um teste de integração que comprove carga em base vazia, falha sem alterações em base preenchida e tabelas administrativas vazias; verificar com o teste focado
+- [ ] 6.3 Criar um script reutilizável que compare `GET /api/agenda` com a carga versionada, verificando que ele detecta uma divergência simulada
+- [ ] 6.4 Executar a carga no Neon com `psql` e verificar com o script da 6.3 que a agenda retorna os mesmos itens, na mesma ordem
 
-## 7. Corte do site
+## 7. Recriação do ambiente
 
-- [ ] 7.1 Definir `VITE_API_URL` em `.github/workflows/deploy.yml`, mantendo `VITE_SUPABASE_*`, e verificar com um build local que o bundle contém a URL da API
-- [ ] 7.2 Atualizar `STATUS.md`, inclusive o bloqueio e o "Não mexer", e abrir o PR de corte com o handoff, com a suíte completa passando
-- [ ] 7.3 **[Vinícius]** Fazer o merge do PR de corte e verificar que a home publicada exibe a agenda sem erro de CORS no console, inclusive em um celular
+- [ ] 7.1 Documentar em `docs/deploy/backend-production.md` a recriação do ambiente e o fluxo de correção (versionar, revisar, aplicar e comparar); verificar subindo a mesma imagem em `amd64` com um PostgreSQL novo, fora do Google, com `/api/agenda` retornando os dados da carga
 
-## 8. Validação em produção
+## 8. Corte do site
 
-- [ ] 8.1 Verificar cada cenário de `public-agenda-access` contra o domínio publicado (rotas administrativas com 404, HTTP redireciona, banco fechado) e registrar o resultado no PR
-- [ ] 8.2 Medir a memória da VM por 7 dias no painel da Oracle e, se o P95 ficar abaixo de 25% ou perto do total, ajustar o tamanho da VM e medir de novo; verificar registrando os valores no `STATUS.md`
+- [ ] 8.1 Definir `VITE_API_URL` em `.github/workflows/deploy.yml`, mantendo `VITE_SUPABASE_*`, e verificar com um build local que o bundle contém a URL da API
+- [ ] 8.2 Atualizar `STATUS.md`, inclusive o bloqueio e o "Não mexer", e abrir o PR de corte com o handoff, com a suíte completa passando
+- [ ] 8.3 **[Vinícius]** Fazer o merge do PR de corte e verificar que a home publicada exibe a agenda sem erro de CORS no console, inclusive em um celular
+
+## 9. Validação em produção
+
+- [ ] 9.1 Verificar cada cenário de `public-agenda-access` contra o domínio e o endereço `run.app` (rotas administrativas com 404, HTTP redireciona, banco sem TLS recusado) e registrar o resultado no PR
+- [ ] 9.2 Medir o primeiro acesso com a aplicação parada, com e sem `-XX:TieredStopAtLevel=1`, e o tempo de resposta pelo domínio e pelo `run.app`; adotar a opção mais rápida e registrar os valores no PR. Se o domínio for lento demais, levar a decisão a Vinícius
+- [ ] 9.3 Conferir após 7 dias o consumo de CU-horas no Neon, de vCPU-segundos no Cloud Run e o custo no Google; verificar registrando os valores no `STATUS.md`, inclusive se conexões ociosas impedem a suspensão do Neon
 
 ## Workflow follow-up
 
