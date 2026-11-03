@@ -16,10 +16,10 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 
 ## 3. Imagem e ambiente de produção
 
-- [ ] 3.1 Criar `backend/Dockerfile` e verificar que a imagem sobe localmente contra um PostgreSQL e responde `GET /api/agenda`
-- [ ] 3.2 Criar `deploy/compose.prod.yml` com limites de memória, volumes persistentes, sem portas de banco publicadas e com `${VAR:?}` nas variáveis obrigatórias; verificar com `docker compose config` que a ausência da senha falha
-- [ ] 3.3 Criar `deploy/Caddyfile` e verificar localmente que só `GET /api/agenda` chega à aplicação e que as demais rotas e métodos recebem erro, conforme "Superfície pública restrita"
-- [ ] 3.4 Criar `deploy/.env.example` sem valores reais e verificar que `.env` de produção está coberto pelo `.gitignore`
+- [x] 3.1 Criar `backend/Dockerfile` e verificar que a imagem sobe localmente contra um PostgreSQL e responde `GET /api/agenda`
+- [x] 3.2 Criar `deploy/compose.prod.yml` com limites de memória, volumes persistentes, sem portas de banco publicadas e com `${VAR:?}` nas variáveis obrigatórias; verificar com `docker compose config` que a ausência da senha falha
+- [x] 3.3 Criar `deploy/Caddyfile` e verificar localmente que só `GET /api/agenda` chega à aplicação e que as demais rotas e métodos recebem erro, conforme "Superfície pública restrita"
+- [x] 3.4 Criar `deploy/.env.example` sem valores reais e verificar que `.env` de produção está coberto pelo `.gitignore`
 - [ ] 3.5 Documentar em `docs/deploy/backend-production.md` a preparação do servidor (SSH só por chave, atualizações automáticas, firewall da VCN e iptables) e verificar seguindo o documento na VM
 - [ ] 3.6 Aplicar a preparação na VM e verificar de fora que só as portas 22, 80 e 443 respondem e que a do PostgreSQL está fechada
 

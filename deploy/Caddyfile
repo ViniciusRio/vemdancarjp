@@ -1,0 +1,14 @@
+{$API_DOMAIN} {
+	@agenda {
+		method GET
+		path /api/agenda
+	}
+
+	handle @agenda {
+		reverse_proxy backend:8080
+	}
+
+	handle {
+		respond 404
+	}
+}
