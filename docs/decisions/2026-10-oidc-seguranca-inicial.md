@@ -32,4 +32,4 @@ Usar o OAuth2 Client nativo do Spring Security quando client ID, client secret e
 - Manter `permitAll()` até concluir todo o login: deixaria futuros caminhos de escrita expostos durante a migração.
 - Exigir credenciais reais em todos os ambientes: impediria iniciar e testar a aplicação sem segredos.
 
-Veja também: [[decisoes/2026-10-modelo-admin-access]], `PLAN.md`.
+Veja também: [ADR-002](2026-10-modelo-admin-access.md), `PLAN.md`.

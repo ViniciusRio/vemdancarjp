@@ -27,4 +27,4 @@ Criar uma tabela aditiva `admin_access` com UUID interno, Google `sub` textual �
 
 - Manter duas tabelas administrativas novas: exigiria coordenar estados entre elas e uma aprovação com transferência de linha.
 
-Veja também: [[arquitetura/backend-java]], [[modulos/auth-admin]], `PLAN.md`.
+Veja também: `PLAN.md`.
