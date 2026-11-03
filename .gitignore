@@ -39,7 +39,6 @@ __screenshots__/
 *.timestamp-*-*.mjs
 .env
 .env.local
-CLAUDE.md
 
 # Local / IDE settings
 .settings.local.json
@@ -59,3 +58,8 @@ backend/bin
 
 # Docker
 .env.docker
+
+# Obsidian vault — rastreamos notas (.md), ignoramos estado local do app e do MCP.
+vault/.obsidian/*
+!vault/.obsidian/.gitkeep
+vault/.obsidian-mcp/

@@ -397,19 +397,15 @@ Cada um dos passos da "Ordem de Implementação" abaixo **deve** seguir esta seq
 3. **Implementar** — Fazer a menor mudança que satisfaça o passo. Sem refactors não relacionados.
 4. **Resumir o diff** — Explicar brevemente, em pt-BR, o que cada bloco novo faz, apontando `file:line` das partes mais relevantes. Conectar código ↔ conceito, não reescrever o código em prosa.
 5. **Verificar** — Rodar a verificação aplicável: `./gradlew build` (backend) e/ou `npm run lint && npm run type-check && npm run test:unit` (frontend). Reportar o resultado.
-6. **Registrar aprendizado em `LEARNING.md`** — Adicionar uma nova entrada no topo do arquivo seguindo o template do `LEARNING.md`:
-   - `Passo N — <título>` (igual ao título da lista abaixo).
-   - **Conceito:** 1-3 frases sobre o que este passo ensinou.
-   - **Comandos:** comandos novos/surpreendentes com o que fazem.
-   - **Erros:** erros encontrados e a resolução aplicada.
-   - **Referências:** links/`file:line` citados.
-7. **Só então avançar para o próximo passo.**
+6. **Só então avançar para o próximo passo.**
 
-> **Modo direto:** se o usuário disser "só faz", "sem enrola" ou similar, pular as etapas 1, 2 e 4 — mas **nunca** pular a etapa 6 (LEARNING.md).
+> **Modo direto:** se o usuário disser "só faz", "sem enrola" ou similar, pular as etapas 1, 2 e 4 — mas o handoff no PR continua obrigatório.
+
+Como essas etapas se encaixam no fluxo com Claude Code e Codex: ver `docs/AI-WORKFLOW.md`. `LEARNING.md` é histórico congelado e não recebe novas entradas.
 
 ## Ordem de Implementação
 
-Cada item abaixo é um **Passo** numerado. Ao concluir um Passo, registre uma entrada em `LEARNING.md` usando o **mesmo número e título** (ex.: o item `1. Passo 1 — Docker + PostgreSQL` vira a entrada `### Passo 1 — Docker + PostgreSQL` no `LEARNING.md`). A numeração é a âncora entre o plano e o caderno de aprendizado.
+Cada item abaixo é um **Passo** numerado.
 
 1. **Passo 1 — Docker + PostgreSQL** — usar o `docker-compose.yml` existente (Postgres 17, porta 5433). Confirmar que o banco sobe.
 2. **Passo 2 — Setup Gradle + Spring Boot** — `backend/build.gradle` com starters `web`, `data-jpa`, `validation`, `security`, `flyway`, `postgresql`. Conectar ao Docker Postgres.

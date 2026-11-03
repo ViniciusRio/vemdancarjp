@@ -1,6 +1,8 @@
 # LEARNING.md — Caderno de aprendizado do projeto
 
-Este arquivo é o caderno de anotações do projeto. É atualizado automaticamente ao final de cada passo do plano em `PLAN.md` (ver seção "Fluxo de Aprendizado" lá).
+> **Histórico congelado:** este arquivo não recebe novas entradas. Agentes não precisam lê-lo por padrão.
+
+Este arquivo foi o caderno de anotações do projeto, atualizado ao final de cada passo do plano em `PLAN.md`.
 
 Cada entrada documenta o que foi aprendido ao concluir um dos passos da "Ordem de Implementação" do `PLAN.md`. As entradas mais recentes ficam no topo.
 

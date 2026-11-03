@@ -17,7 +17,7 @@ Siga `AGENTS.md`, o contrato explícito do usuário e o fluxo de aprendizado de 
 2. Escreva um teste pequeno que falhe pelo comportamento ausente. Execute-o e confirme que a falha corresponde ao requisito, não a uma configuração quebrada.
 3. Implemente somente o necessário para o teste passar. Execute o teste novamente e observe o resultado verde.
 4. Repita com a próxima fatia de comportamento. Refatore apenas quando houver motivo concreto e preserve o resultado dos testes.
-5. Execute as verificações aplicáveis de `AGENTS.md` e `PLAN.md`. Ao concluir um passo da Ordem de Implementação, registre o aprendizado em `LEARNING.md` antes de avançar.
+5. Execute as verificações aplicáveis de `AGENTS.md` e `PLAN.md`.
 
 ## Qualidade dos testes
 

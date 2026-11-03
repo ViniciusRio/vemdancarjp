@@ -17,7 +17,7 @@ Siga `AGENTS.md`, o pedido do usuário, `PLAN.md` e as ADRs pertinentes. Essas i
 2. Reduza o cenário enquanto o sintoma continuar reproduzível. Se não for possível reproduzir, informe o que foi tentado e quais dados ou acesso faltam, sem apresentar uma causa como confirmada.
 3. Formule hipóteses ordenadas e falsificáveis. Para cada uma, indique qual observação a confirmaria ou refutaria; investigue uma variável por vez.
 4. Identifique a causa apoiada pela reprodução. Quando houver uma fronteira adequada, crie um teste de regressão que falhe, implemente a correção e confirme o teste passando, seguindo o ciclo de TDD. Se não houver, explique a limitação e mantenha uma verificação reproduzível.
-5. Reexecute o cenário original e as verificações aplicáveis. Remova instrumentação temporária. Se a correção concluir um passo de `PLAN.md`, registre o aprendizado em `LEARNING.md`.
+5. Reexecute o cenário original e as verificações aplicáveis. Remova instrumentação temporária.
 
 ## Dados sensíveis
 

@@ -1,78 +1,76 @@
 # AGENTS.md
 
-Regras gerais do projeto. Detalhes de modelo, custo, fluxo e padrões de prompt estão em `docs/AI-*.md`; conhecimento especializado por papel está nas skills em `.opencode/skills/`.
+Fonte única de regras do projeto. Estado atual: `STATUS.md`.
 
-## Comandos e Verificação
+## Fluxo de trabalho
+
+- Claude Code implementa, Codex revisa em modo somente leitura e Vinícius aprova e faz o merge.
+- Mudança relevante começa com change no OpenSpec, aprovada antes do código. Tarefa pequena pula a spec.
+- Sempre em branch própria, nunca na `main`. Agente nunca faz merge. Merge na `main` é deploy.
+- Pronto = checagens passando e `STATUS.md` atualizado; o handoff vai na descrição do PR.
+- Detalhes (handoff, rodadas de revisão, modo reserva, worktree): `docs/AI-WORKFLOW.md`.
+
+## Comandos
 
 - **Dev:** `npm run dev`
-- **Typecheck:** `npm run type-check` (`vue-tsc --build`)
-- **Lint:** `npm run lint` (`oxlint . --fix` + `eslint . --fix --cache`)
-- **Format:** `npm run format` (`prettier --write --experimental-cli src/`)
-- **Build:** `npm run build` (`vue-tsc --build && vite build`)
-- **Testes unitários:** `npm run test:unit` (`vitest --passWithNoTests`)
-- **Teste isolado:** `npx vitest run path/to/file.spec.ts`
-- **Sequência completa:** `npm run lint && npm run type-check && npm run test:unit` (ou comando `/verify`)
+- **Typecheck:** `npm run type-check`
+- **Lint:** `npm run lint` (aplica `--fix`)
+- **Format:** `npm run format`
+- **Build:** `npm run build`
+- **Backend:** `cd backend && ./gradlew test -q` (Testcontainers exige Docker) e `./gradlew build`
+
+Testes focados durante o trabalho:
+
+- `npx vitest run caminho/arquivo.spec.ts`
+- `cd backend && ./gradlew test --tests "*AdminEvent*" -q`
+
+Suíte completa uma vez, antes do handoff: `npm run lint && npm run type-check && npm run test:unit` e o teste do backend.
+
+## Saída de comandos
+
+- Modo silencioso, mostrando só falhas, com `set -o pipefail` para não esconder erros:
+  - `cd backend && ./gradlew test -q 2>&1 | tail -50`
+  - `npm run lint 2>&1 | tail -40`
+  - `npm run type-check 2>&1 | tail -40`
+- Se falhar, procure o erro (`grep -n "FAILED\|error"`) antes de abrir o relatório completo.
+- Nunca imprima o relatório HTML de testes nem o log completo do Testcontainers.
+
+## Leitura econômica
+
+- `PLAN.md`: leia só o Passo atual (`grep -n "Passo 8" PLAN.md` e depois a faixa de linhas).
+- `LEARNING.md`: histórico congelado. Não leia por padrão e não adicione entradas.
 
 ## Idioma
 
-- Código, nomes de variáveis, tipos e mensagens de commit em inglês.
-- Documentação, explicações e texto de UI em português (pt-BR).
-- Agentes respondem em pt-BR, salvo pedido expresso em inglês.
-- Termos técnicos consagrados permanecem em inglês (Vue, Pinia, Supabase, RLS, Composition API, composable, store, service, router, Vite, Tailwind, etc.).
+- Código, nomes, tipos e mensagens de commit em inglês.
+- Documentação, explicações e texto de UI em pt-BR. Agentes respondem em pt-BR.
+- Termos técnicos consagrados permanecem em inglês.
 
-## Arquitetura e Estrutura
+## Stack e estrutura
 
-- **Stack:** Vue 3 (Composition API) + TypeScript + Vite + Tailwind CSS v4 + Pinia + Supabase.
-- **Path alias:** `@/` → `src/`.
-- **Fronteiras de diretório:**
-  - `src/features/agenda/`: componentes, composables (`useAgendaAdmin`, `useAdminVenues`) e tipos de domínio.
-  - `src/views/`: `AgendaHomeView.vue`, `admin/AdminLoginView.vue`, `admin/AdminView.vue`.
-  - `src/stores/`: `agendaStore.ts` (estado público da agenda), `authStore.ts` (auth Supabase + privilégios de admin).
-  - `src/services/`: `supabase.ts` (singleton), `agendaService.ts` (CRUD).
+Migração de Supabase para Java + Spring Boot em andamento; roteiro em `PLAN.md`.
 
-## Ambiente e Supabase
+- **Frontend:** Vue 3 (Composition API) + TypeScript + Vite + Tailwind CSS v4 + Pinia. Alias `@/` → `src/`.
+  - A agenda pública lê `GET /api/agenda` (`src/services/agendaService.ts`).
+  - Login e painel admin ainda usam Supabase (Google OAuth e RLS), inclusive para escrita.
+- **Backend (`backend/`):** Java 21, Spring Boot, Flyway, PostgreSQL, Google OIDC com sessão e CSRF. Ainda não está em produção.
+- **Produção:** GitHub Pages, só o frontend.
+- **Env:** `.env` (template em `.env.example`). Segredo nunca no frontend nem no repositório.
 
-- **Env:** `.env` (template em `.env.example`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-- **Tabelas:** `events`, `variable_venues`, `other_venues`, `admins`, `pending_admins`.
-- **Auth:** apenas Google OAuth (`supabase.auth.signInWithOAuth({ provider: 'google' })`). Segurança por Row Level Security (RLS).
+## Convenções
 
-## Convenções de código
+- **Componentes Vue:** `<script setup lang="ts">` com tipos explícitos para props e emits. Options API é proibido.
+- **Nomes:** `PascalCase.vue` para componentes; `camelCase.ts` para composables, services, stores e helpers.
+- **Estado:** stores Pinia. Não use `localStorage` para estado de auth ou da app.
+- **Comentários:** não adicione a menos que solicitado.
+- **Sem invenção:** não invente tabelas, colunas, endpoints ou políticas sem confirmar no código ou nas migrations.
 
-- **Componentes Vue:** `<script setup lang="ts">` com tipos explícitos para props/emits. Options API é proibido.
-- **Nomenclatura:** `PascalCase.vue` para componentes; `camelCase.ts` para composables, services, stores e helpers.
-- **Estado:** stores Pinia (`authStore`, `agendaStore`). Não ler/gravar `localStorage` para estado de auth ou da app.
-- **Comentários:** não adicione comentários a menos que solicitado.
-- **Sem invenção:** não invente tabelas, colunas, endpoints ou políticas que não estejam confirmados no código ou nas migrations.
+## Decisões e vault
 
-## Migração para Backend Java (WIP)
+- Antes de propor arquitetura ou mudança de alto risco, consulte os ADRs em `vault/decisoes/`. Decisão que vale além de uma change vira ADR lá.
+- `vault/` é Markdown comum (entrada: `vault/00-indice.md`). `vault/tarefas/` é histórico congelado: progresso fica no `tasks.md` do OpenSpec.
+- **Nunca** coloque segredos, tokens ou dados pessoais no vault nem em outro arquivo versionado.
 
-Migrando de Supabase para backend Java + Spring Boot. Plano em `PLAN.md`.
+## Correções recorrentes
 
-- **Fluxo de Aprendizado obrigatório** para cada passo da "Ordem de Implementação" do `PLAN.md`: explicar → confirmar → implementar → resumir diff → verificar → **registrar em `LEARNING.md`** → avançar.
-- **`LEARNING.md`** atualizado ao final de cada passo concluído (entrada mais recente no topo). Nunca pular — mesmo em modo direto.
-- **Modo direto** ("só faz"): pula explicação prévia e resumo do diff, mas **nunca** pula o `LEARNING.md`.
-
-## Estratégia de modelo
-
-- **Padrão:** GPT Luna (`openai/gpt-6-luna`) — dia a dia.
-- **Pesado:** GPT Sol (`openai/gpt-6-sol`) — arquitetura, migrations, RLS, decisões de alto risco.
-- Regra prática: comece no GPT Luna. Se a tarefa for "projetar", "decidir", "migrar" ou "proteger", troque para GPT Sol.
-- Detalhes e fluxos ideais: `docs/AI-MODEL-STRATEGY.md`. Economia de contexto/custos: `docs/AI-COST-CONTROL.md`.
-
-## Skills e Agentes
-
-Conhecimento especializado vive em `.opencode/skills/<nome>/SKILL.md`; modelo, modo e permissões vivem em `.opencode/agents/<nome>.md`.
-
-- **`agenda-dev`** — implementação cotidiana da feature agenda. GPT Luna. Edita; comandos destrutivos pedem aprovação.
-- **`architect`** — arquitetura, migrations, decisões difíceis. GPT Sol. **Somente leitura.**
-- **`security-reviewer`** — RLS, auth, autorização. GPT Sol. **Somente leitura.**
-
-Carregue a skill correspondente antes de trabalhar em sua área. Selecione o agente via `/agents` ou use os comandos `/verify` e `/plan-feature`.
-
-## Documentação complementar
-
-- Estratégia de modelos: `docs/AI-MODEL-STRATEGY.md`
-- Economia de contexto e custos: `docs/AI-COST-CONTROL.md`
-- Fluxo de trabalho: `docs/AI-WORKFLOW.md`
-- Padrões de prompt: `docs/AI-PROMPT-PATTERNS.md`
-- Templates de prompt prontos: `docs/ai-prompts.md`
+Quando um agente repetir um erro já corrigido, registre aqui em uma linha.

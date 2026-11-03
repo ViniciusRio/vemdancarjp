@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./node_modules/**)",
+      "Read(./dist/**)",
+      "Read(./backend/build/**)",
+      "Read(./backend/.gradle/**)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh api *merge*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push *:main*)",
+      "Bash(git push * main)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)"
+    ]
+  }
+}
