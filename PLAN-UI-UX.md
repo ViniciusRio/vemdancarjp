@@ -4,7 +4,7 @@
 
 O projeto Vue 3 + Tailwind v4 tem cores hardcoded (`bg-green-50`, `text-green-900`, etc.) sem um design system formal. Este plano usa o kit em `ui-ux/` (Penpot + MCP + `DESIGN.md` + tokens DTCG) para estruturar a identidade visual, alinhando-a ao tom cultural do projeto (agenda de forró pé de serra em João Pessoa).
 
-Paralelo ao `PLAN.md` (backend Java). Ambos alimentam o mesmo `LEARNING.md` — entradas prefixadas com `UI/UX — Fase N` vs `Passo N` (backend).
+Paralelo ao `PLAN.md` (backend Java).
 
 ## Stack
 
@@ -54,7 +54,6 @@ Paralelo ao `PLAN.md` (backend Java). Ambos alimentam o mesmo `LEARNING.md` — 
 
 - **Penpot é opcional.** Dá pra pular Fases 2 e 4 e ir direto: extração (Fase 1) → código (Fase 3). O canvas é útil pra visualizar antes de codar, mas não é obrigatório. O `DESIGN.md` + `tokens/*.json` funcionam sozinhos como contrato.
 - **Paralelo ao `PLAN.md`.** Este plano é uma trilha separada do backend Java — intercalar ou fazer um de cada vez.
-- **`LEARNING.md` compartilhado.** Entradas prefixadas: `UI/UX — Fase N` vs `Passo N` (backend).
 
 ## Rollback
 

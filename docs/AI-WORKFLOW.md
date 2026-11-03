@@ -53,8 +53,8 @@ Em "Arquivos alterados" e "Decisões", ligue código a conceito com `arquivo:lin
 
 ### 5. Aprovar
 
-- Só Vinícius faz merge. A `main` é protegida por ruleset no GitHub; `.claude/settings.json` bloqueia merge e push direto no cliente.
-- O ruleset não exige aprovação, pois o GitHub não aceita autoaprovação. Portanto, não há bloqueio no servidor contra um merge feito com a credencial do `gh`: agente nenhum faz merge, por qualquer meio.
+- Só Vinícius faz merge. Nenhum agente faz merge, por nenhum meio, mesmo que o comando não esteja bloqueado.
+- **As proteções atuais não garantem essa regra.** O ruleset exige PR, mas não aprovação, porque o GitHub não aceita autoaprovação. O `deny` de `.claude/settings.json` é uma proteção adicional, local e contornável: só cobre certos textos de comando. A credencial do `gh` usada pelos agentes consegue fazer merge.
 - Merge na `main` é deploy (`.github/workflows/deploy.yml`).
 
 ### 6. Modo reserva (limite do Claude Code)
