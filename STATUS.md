@@ -7,6 +7,5 @@
 ## Próximo
 1. Corrigir o site. 2. Separar checks e deploy no deploy.yml.
 3. Arquivar admin-event-creation. 4. PR da listagem (WIP local). 5. Corte do Passo 10.
-Pendência: a credencial do gh dos agentes consegue fazer merge.
 ## Não mexer
 - Dados do Supabase, até a reconciliação do Passo 10.
