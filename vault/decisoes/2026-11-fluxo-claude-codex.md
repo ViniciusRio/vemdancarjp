@@ -26,7 +26,7 @@ O repositório documentava um fluxo no opencode, com agentes por papel e modelos
 - O vault deixa de ter MCP e passa a ser lido como Markdown comum.
 - `vault/tarefas/` também fica congelado; o progresso vai para o `tasks.md` do OpenSpec.
 - O ruleset exige PR, mas não aprovação, porque o GitHub não aceita autoaprovação. O impedimento a merge por agente fica em regra de processo e no `deny` do cliente, sem bloqueio no servidor.
-- `ui-ux/` e `PLAN-UI-UX.md` ainda citam o opencode e ficam como pendência.
+- `ui-ux/` e `PLAN-UI-UX.md` também são removidos, por decisão do dono do projeto. Seguem recuperáveis pelo histórico do Git. A menção ao plano na ADR-001 é histórica.
 
 ## Alternativas consideradas
 
