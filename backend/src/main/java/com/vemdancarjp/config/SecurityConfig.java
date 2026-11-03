@@ -63,6 +63,8 @@ public class SecurityConfig {
 
         RequestMatcher logoutRoute = request -> "POST".equals(request.getMethod()) &&
             (request.getContextPath() + "/api/auth/logout").equals(request.getRequestURI());
+        RequestMatcher adminEventListingRoute = request -> "GET".equals(request.getMethod()) &&
+            (request.getContextPath() + "/api/admin/events").equals(request.getRequestURI());
 
         http
             .authorizeHttpRequests(auth -> auth
@@ -72,6 +74,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/auth/session").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 .requestMatchers(HttpMethod.GET, "/oauth2/authorization/google", "/login/oauth2/code/google").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/admin/events").access(adminAccessAuthorizationManager)
                 .requestMatchers(HttpMethod.POST, "/api/admin/events").access(adminAccessAuthorizationManager)
                 .requestMatchers("/api/admin/**").denyAll()
                 .anyRequest().denyAll())
@@ -103,6 +106,17 @@ public class SecurityConfig {
                             new InsufficientAuthenticationException("Authentication is required"));
                         return;
                     }
+                }
+                filterChain.doFilter(request, response);
+            }
+        }, LogoutFilter.class);
+
+        http.addFilterBefore(new OncePerRequestFilter() {
+            @Override
+            protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                    FilterChain filterChain) throws ServletException, IOException {
+                if (adminEventListingRoute.matches(request)) {
+                    response.setHeader("Cache-Control", "no-store");
                 }
                 filterChain.doFilter(request, response);
             }
