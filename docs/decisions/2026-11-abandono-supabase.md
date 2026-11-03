@@ -16,8 +16,8 @@ A home publicada está em erro desde 16/09, porque chama `/api/agenda` sem backe
 
 - Abandonar o Supabase e descartar seus dados. Vinícius considera que eles não são importantes.
 - Usar `public/agenda.json`, revisado por ele, como fonte da carga inicial do PostgreSQL.
-- Publicar o backend Java com PostgreSQL em uma VM do Oracle Cloud Always Free, região São Paulo.
-- Permanecer somente em planos gratuitos durante o desenvolvimento. Opções pagas estão descartadas nesta fase, mesmo que falte capacidade na Oracle.
+- Publicar o backend Java com PostgreSQL em uma VM do Oracle Cloud Always Free, região São Paulo. **Substituído pelo ADR-006:** Cloud Run + Neon, por falta de capacidade na Oracle.
+- Permanecer somente em planos gratuitos durante o desenvolvimento.
 - Ficar sem backup e monitoramento enquanto o painel admin estiver fora do ar, porque a agenda é recriável pela carga versionada.
 
 ## Consequências
@@ -27,7 +27,6 @@ A home publicada está em erro desde 16/09, porque chama `/api/agenda` sem backe
 - Backup e monitoramento são pré-requisitos da change que voltar a permitir escrita pelo painel admin.
 - Uma queda só é notada quando alguém abre o site.
 - O SDK e os secrets `VITE_SUPABASE_*` ficam até o corte do frontend, porque a home importa o cliente Supabase.
-- A produção depende de capacidade Arm em uma região com um único domínio de disponibilidade, e o site fica fora do ar enquanto ela não aparecer.
 
 ## Alternativas consideradas
 
@@ -35,4 +34,4 @@ A home publicada está em erro desde 16/09, porque chama `/api/agenda` sem backe
 - Hostinger, Railway ou Hetzner: descartadas por serem pagas.
 - Plano gratuito do Render: descartado porque o serviço dorme e o banco expira em 30 dias.
 
-Veja também: ADR-001 e `openspec/changes/backend-production-deploy/`.
+Veja também: ADR-001, ADR-006 e `openspec/changes/backend-production-deploy/`.

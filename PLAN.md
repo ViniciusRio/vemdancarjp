@@ -236,7 +236,7 @@ O backend (`AgendaService`) já faz o agrupamento por `day_id` e a tradução do
 
 ## Docker
 
-O frontend permanece no GitHub Pages com domínio próprio. A API fica em uma VM do Oracle Cloud Always Free, em `api.vemdancarjp.com.br`, somente em planos gratuitos durante o desenvolvimento (ADR-005). Detalhes em `openspec/changes/backend-production-deploy/`.
+O frontend permanece no GitHub Pages com domínio próprio. A API fica no Google Cloud Run, com banco no Neon, em `api.vemdancarjp.com.br`, nos planos gratuitos durante o desenvolvimento (ADR-006). Detalhes em `openspec/changes/backend-production-deploy/`.
 
 ### `docker-compose.yml` (exemplo planejado; backend ainda não configurado)
 
