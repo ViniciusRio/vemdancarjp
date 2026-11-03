@@ -21,6 +21,17 @@ O backend SHALL ser atualizado em produção automaticamente após merge na `mai
 - **WHEN** a nova versão não responde `200` em `/api/agenda` dentro do tempo limite
 - **THEN** o workflow falha e a versão anterior volta a rodar
 
+### Requirement: Deploy exclusivo
+Somente um deploy, automático ou manual, SHALL atuar em produção por vez. O retorno automático de uma tentativa que falhou SHALL restaurar a última versão que estava em execução no início dessa tentativa exclusiva.
+
+#### Scenario: Dois deploys ao mesmo tempo
+- **WHEN** um deploy é disparado enquanto outro está em andamento
+- **THEN** o segundo só atua no servidor depois que o primeiro terminar, ou falha sem alterar a produção
+
+#### Scenario: Falha depois de um deploy válido
+- **WHEN** um deploy válido termina e o deploy seguinte falha ao subir
+- **THEN** a produção volta à versão publicada pelo deploy válido
+
 ### Requirement: Rollback por versão anterior
 Vinícius SHALL poder voltar o backend a uma imagem já publicada, sem novo build.
 
@@ -47,18 +58,22 @@ Senhas e chaves de produção SHALL ficar somente no servidor ou nos secrets do 
 - **THEN** a inicialização falha, sem usar a senha padrão de desenvolvimento
 
 ### Requirement: Base recriável a partir do repositório
-O conteúdo da agenda em produção SHALL ser sempre reproduzível pela carga versionada, de modo que uma correção manual no banco também entre nessa carga.
+O conteúdo da agenda em produção SHALL ser sempre reproduzível pela carga versionada, de modo que nenhuma correção chegue ao banco sem antes estar nessa carga.
 
 #### Scenario: Recriação em servidor novo
 - **WHEN** a produção é recriada em um servidor novo, com banco vazio, seguindo a documentação
 - **THEN** depois da carga versionada, `GET /api/agenda` retorna os mesmos dados da produção anterior
 
-#### Scenario: Correção manual na agenda
-- **WHEN** um dado da agenda é corrigido diretamente no banco de produção
-- **THEN** a mesma correção é versionada na carga, antes de a tarefa ser considerada concluída
+#### Scenario: Correção na agenda
+- **WHEN** um dado da agenda precisa ser corrigido em produção
+- **THEN** a correção é versionada e revisada na carga antes de ser aplicada ao banco
 
-### Requirement: Migração de provedor possível
-A produção SHALL funcionar em `arm64` e `amd64`, sem configuração específica da Oracle na aplicação, para permitir a mudança para o plano B.
+#### Scenario: Conferência depois da correção
+- **WHEN** uma correção é aplicada ao banco de produção
+- **THEN** uma comparação automatizada confirma que `GET /api/agenda` retorna os mesmos dados da carga versionada
+
+### Requirement: Produção portátil
+A produção SHALL funcionar em `arm64` e `amd64`, sem configuração específica da Oracle na aplicação, para permitir a recriação em outro ambiente.
 
 #### Scenario: Subida em servidor amd64
 - **WHEN** a mesma versão é iniciada em um servidor `amd64` com banco vazio e a carga versionada

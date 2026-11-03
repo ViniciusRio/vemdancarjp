@@ -5,7 +5,7 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 ## 1. Decisão e pré-requisitos
 
 - [ ] 1.1 Escrever o ADR-005 sobre o abandono do Supabase, o descarte dos seus dados e a ausência temporária de backup e monitoramento em `docs/decisions/` e atualizar a seção de Rollback e o Passo 10 do `PLAN.md`; verificar que nenhum trecho ainda prevê reconciliação ou retorno ao Supabase
-- [ ] 1.2 **[Vinícius]** Criar a VM Ampere A1 (1 OCPU, 4 GB, Ubuntu LTS `arm64`) na conta Oracle; verificar com acesso SSH por chave
+- [ ] 1.2 **[Vinícius]** Criar a VM Ampere A1 (1 OCPU, 4 GB, Ubuntu LTS `arm64`) na conta Oracle, usando `deploy/oracle-create-vm.sh` enquanto faltar capacidade; verificar com acesso SSH por chave
 - [ ] 1.3 **[Vinícius]** Criar o registro `api.vemdancarjp.com.br` no Registro.br apontando para o IP da VM; verificar resolução por DNS público
 
 ## 2. CORS da agenda
@@ -25,9 +25,9 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 
 ## 4. Deploy automático
 
-- [ ] 4.1 Criar o script de deploy com validação do digest, dump prévio, teste da agenda e volta à imagem anterior; verificar localmente com uma imagem boa e uma que falha ao subir
+- [ ] 4.1 Criar o script de deploy com `flock`, validação do digest, dump prévio, teste da agenda e volta à imagem anterior lida depois da trava; verificar localmente com uma imagem boa, uma que falha ao subir e duas execuções simultâneas
 - [ ] 4.2 Criar a chave de deploy com `restrict,command=` e verificar que outro comando enviado por ela não é executado e que `ssh -L` até o PostgreSQL é recusado
-- [ ] 4.3 Criar `.github/workflows/deploy-backend.yml` (testes, JAR, imagem `arm64` e `amd64`, GHCR, deploy por digest), acionado por `push` na `main` em `backend/**` e `deploy/**` e por `workflow_dispatch`; verificar com `actionlint` ou revisão da sintaxe antes do merge
+- [ ] 4.3 Criar `.github/workflows/deploy-backend.yml` (testes, JAR, imagem `arm64` e `amd64`, GHCR, deploy por digest, `concurrency` sem cancelamento), acionado por `push` na `main` em `backend/**` e `deploy/**` e por `workflow_dispatch`; verificar com `actionlint` ou revisão da sintaxe antes do merge
 - [ ] 4.4 Abrir o PR de infraestrutura com o handoff e verificar lint, type-check, testes do frontend e do backend passando
 - [ ] 4.5 **[Vinícius]** Aprovar os secrets no GitHub, criar o `.env` na VM e fazer o merge do PR de infraestrutura; verificar que o workflow conclui e que `https://api.vemdancarjp.com.br/api/agenda` responde `200`
 - [ ] 4.6 Testar um rollback real por `workflow_dispatch` para o digest anterior e verificar a versão em execução
@@ -36,11 +36,12 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 
 - [ ] 5.1 **[Vinícius]** Revisar os dados de `public/agenda.json` e aprovar a lista; verificar com a aprovação registrada no PR
 - [ ] 5.2 Criar `deploy/seed/agenda-initial.sql` e um teste de integração que comprove carga em base vazia, falha sem alterações em base preenchida e tabelas administrativas vazias; verificar com o teste focado
-- [ ] 5.3 Executar a carga na produção e verificar que `GET /api/agenda` retorna os mesmos itens da fonte, na mesma ordem, com uma comparação automatizada
+- [ ] 5.3 Criar um script reutilizável que compare `GET /api/agenda` com a carga versionada, verificando que ele detecta uma divergência simulada
+- [ ] 5.4 Executar a carga na produção e verificar com o script da 5.3 que a agenda retorna os mesmos itens, na mesma ordem
 
-## 6. Recriação e plano B
+## 6. Recriação do ambiente
 
-- [ ] 6.1 Documentar em `docs/deploy/backend-production.md` a recriação do ambiente, a migração para a Hostinger e a regra de versionar correções manuais; verificar seguindo o documento em um ambiente `amd64` novo, com `/api/agenda` retornando os dados da carga
+- [ ] 6.1 Documentar em `docs/deploy/backend-production.md` a recriação do ambiente e o fluxo de correção (versionar, revisar, aplicar e comparar); verificar seguindo o documento em um ambiente `amd64` novo, com `/api/agenda` retornando os dados da carga
 
 ## 7. Corte do site
 

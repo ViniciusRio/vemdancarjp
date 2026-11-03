@@ -6,7 +6,7 @@ A home publicada está em erro desde 16/09: o build chama `/api/agenda`, mas nã
 
 ## What Changes
 
-- Publicar o backend e o PostgreSQL em uma VM Arm do Oracle Cloud Always Free, em `https://api.vemdancarjp.com.br`, com a Hostinger KVM 1 como plano B documentado.
+- Publicar o backend e o PostgreSQL em uma VM Arm do Oracle Cloud Always Free, em `https://api.vemdancarjp.com.br`. Durante o desenvolvimento, o projeto fica somente em planos gratuitos, por decisão de Vinícius.
 - Expor na internet somente `GET /api/agenda`. Login, sessão e rotas administrativas ficam inacessíveis em produção nesta change.
 - Permitir que `https://vemdancarjp.com.br` leia a agenda por CORS, sem credenciais.
 - Popular o PostgreSQL de produção com uma carga inicial a partir do `public/agenda.json`, revisado por Vinícius. Os dados do Supabase são descartados por decisão dele.

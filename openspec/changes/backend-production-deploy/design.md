@@ -17,7 +17,8 @@ Motivação em `proposal.md`; comportamento exigido em `specs/`.
 **Goals:**
 
 - Devolver a agenda pública ao ar, com custo zero e de forma recriável se a Oracle falhar.
-- Manter a configuração portátil para a Hostinger.
+- Manter a configuração portátil, sem depender de recursos específicos da Oracle.
+- Permanecer somente em planos gratuitos durante o desenvolvimento.
 
 **Non-Goals:**
 
@@ -40,7 +41,7 @@ Internet --443--> Caddy --> Spring Boot --> PostgreSQL
 
 A VM inicial é Ampere A1 com 1 OCPU e 4 GB, em Ubuntu LTS `arm64`. O Compose de produção fica em `deploy/`, separado do Compose de desenvolvimento, e usa `${VAR:?}` para falhar se faltar uma variável obrigatória.
 
-**Alternativa descartada:** Autonomous Database da Oracle, porque prenderia o projeto ao provedor e afastaria o banco do plano B.
+**Alternativa descartada:** Autonomous Database da Oracle, porque prenderia o projeto ao provedor.
 
 ### Caddy como filtro da superfície pública
 
@@ -60,7 +61,7 @@ A origem vem da variável `APP_FRONTEND_URL`, que já existe para o redirecionam
 
 ### Imagem multi-arquitetura a partir de um JAR
 
-O workflow roda os testes em `x86`, gera o JAR e monta a imagem para `linux/arm64` e `linux/amd64` com buildx, sobre `eclipse-temurin:21-jre`. Como a imagem só copia o JAR, a emulação custa pouco e o plano B já fica pronto. As imagens vão para o GHCR, e o deploy usa sempre o digest, nunca uma tag mutável.
+O workflow roda os testes em `x86`, gera o JAR e monta a imagem para `linux/arm64` e `linux/amd64` com buildx, sobre `eclipse-temurin:21-jre`. Como a imagem só copia o JAR, a emulação custa pouco, e a imagem `amd64` também permite testar localmente e recriar o ambiente em outro servidor. As imagens vão para o GHCR, e o deploy usa sempre o digest, nunca uma tag mutável.
 
 **Alternativa descartada:** compilar na VM, o que consumiria a pouca CPU da produção e exigiria o código-fonte no servidor.
 
@@ -70,6 +71,8 @@ O GitHub Actions conecta com uma chave cujo `authorized_keys` usa `restrict,comm
 
 O workflow só roda em `push` na `main` e em `workflow_dispatch`, nunca em PR, para que forks não alcancem os secrets.
 
+Deploys são serializados em duas camadas: `concurrency` no workflow, sem cancelar o que está em andamento, e `flock` no script do servidor. A imagem de retorno é lida depois de obter a trava, para uma tentativa com falha nunca restaurar uma versão anterior à última publicada.
+
 **Alternativa descartada:** Tailscale ou outro túnel, mais um serviço para um ganho pequeno neste momento.
 
 ### Sem backup e monitoramento nesta change
@@ -78,7 +81,7 @@ Decisão de Vinícius. Nesta fase, o banco não guarda nada que não possa ser r
 
 Isso vale enquanto duas condições forem cumpridas:
 
-1. Toda correção manual no banco também entra em `deploy/seed/agenda-initial.sql`.
+1. Toda correção entra primeiro em `deploy/seed/agenda-initial.sql`, revisada e versionada. Só depois é aplicada ao banco, e um script compara a agenda publicada com a carga.
 2. Backup e monitoramento são pré-requisitos da change que voltar a permitir escrita pelo painel admin. A proposta anterior, com backup em artifact criptografado e alerta independente, foi retirada e pode servir de ponto de partida.
 
 ### Carga inicial fora do Flyway
@@ -105,10 +108,10 @@ Não usaremos scripts que simulam uso, como NeverIdle ou LookBusy. Isso é frág
 
 ## Risks / Trade-offs
 
-- [A Oracle recupera a VM ou bloqueia a conta] → A agenda é recriada pela carga versionada, com a imagem `amd64` e o passo a passo do plano B prontos. Não há perda de dados se a condição de versionar correções for cumprida.
+- [A Oracle recupera a VM ou bloqueia a conta] → A agenda é recriada pela carga versionada, com a imagem `amd64` e o passo a passo de recriação prontos. Não há perda de dados se a condição de versionar correções for cumprida.
 - [Queda não percebida, já que não há monitoramento] → Risco aceito por Vinícius, que abre o site depois de cada deploy e periodicamente. A queda anterior durou semanas sem correção, então o monitoramento volta antes do painel admin.
-- [Correção manual fora da carga] → Uma recriação restauraria dados antigos. A spec exige versionar a correção e o documento de operação repete a regra.
-- [Sem capacidade Arm em São Paulo] → Tentar outro domínio de disponibilidade ou mais tarde. Se persistir, Vinícius decide sobre a Hostinger, já que a região principal não muda.
+- [Correção manual fora da carga] → Uma recriação restauraria dados antigos. A spec exige versionar antes de aplicar, e a comparação automatizada detecta divergências.
+- [Sem capacidade Arm em São Paulo, que tem um único domínio de disponibilidade e é a região principal da conta] → `deploy/oracle-create-vm.sh` repete a criação sem prazo. O site continua fora do ar enquanto isso, pois opções pagas estão descartadas nesta fase.
 - [VM criada com recurso não elegível durante o trial] → Conferir o selo Always Free no shape e no disco na criação, para a VM não parar nem gerar cobrança ao fim do trial.
 - [Pouca memória para os dois serviços] → Limites explícitos no Compose e no heap do Java, ajustados por medição.
 - [Migration incompatível em um deploy futuro] → Rollback de imagem não desfaz schema; o script grava dump antes de cada deploy, e as migrations seguem aditivas.
