@@ -5,7 +5,7 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 ## 1. Decisão e pré-requisitos
 
 - [x] 1.1 Escrever o ADR-005 sobre o abandono do Supabase, o descarte dos seus dados e a ausência temporária de backup e monitoramento em `docs/decisions/` e atualizar a seção de Rollback e o Passo 10 do `PLAN.md`; verificar que nenhum trecho ainda prevê reconciliação ou retorno ao Supabase
-- [ ] 1.2 **[Vinícius]** Criar a VM Ampere A1 (1 OCPU, 4 GB, Ubuntu LTS `arm64`) na conta Oracle, usando `deploy/oracle-create-vm.sh` enquanto faltar capacidade; verificar com acesso SSH por chave
+- [ ] 1.2 **[Vinícius]** Criar a VM Ampere A1 (1 OCPU, 2 GB, Ubuntu LTS `arm64`) na conta Oracle, usando `deploy/oracle-create-vm.sh` enquanto faltar capacidade; verificar com acesso SSH por chave
 - [ ] 1.3 **[Vinícius]** Criar o registro `api.vemdancarjp.com.br` no Registro.br apontando para o IP da VM; verificar resolução por DNS público
 
 ## 2. CORS da agenda
@@ -52,7 +52,7 @@ As tarefas marcadas com **[Vinícius]** exigem conta, dados pessoais ou aprovaç
 ## 8. Validação em produção
 
 - [ ] 8.1 Verificar cada cenário de `public-agenda-access` contra o domínio publicado (rotas administrativas com 404, HTTP redireciona, banco fechado) e registrar o resultado no PR
-- [ ] 8.2 Medir a memória da VM por 7 dias no painel da Oracle e, se o P95 ficar abaixo de 25%, reduzir a VM e medir de novo; verificar registrando os valores no `STATUS.md`
+- [ ] 8.2 Medir a memória da VM por 7 dias no painel da Oracle e, se o P95 ficar abaixo de 25% ou perto do total, ajustar o tamanho da VM e medir de novo; verificar registrando os valores no `STATUS.md`
 
 ## Workflow follow-up
 

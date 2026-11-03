@@ -5,7 +5,7 @@ set -euo pipefail
 : "${SSH_PUBLIC_KEY_FILE:=$HOME/.ssh/vemdancarjp-oracle.pub}"
 : "${DISPLAY_NAME:=vemdancarjp-prod}"
 : "${OCPUS:=1}"
-: "${MEMORY_GB:=4}"
+: "${MEMORY_GB:=2}"
 : "${IMAGE_NAME_PREFIX:=Canonical-Ubuntu-24.04-Minimal-aarch64}"
 : "${RETRY_SECONDS:=600}"
 : "${THROTTLE_SECONDS:=1800}"

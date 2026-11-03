@@ -39,7 +39,7 @@ Internet --443--> Caddy --> Spring Boot --> PostgreSQL
                     +-- todo o resto: 404
 ```
 
-A VM inicial é Ampere A1 com 1 OCPU e 4 GB, em Ubuntu LTS `arm64`. O Compose de produção fica em `deploy/`, separado do Compose de desenvolvimento, e usa `${VAR:?}` para falhar se faltar uma variável obrigatória.
+A VM inicial é Ampere A1 com 1 OCPU e 2 GB, em Ubuntu LTS `arm64`. O Compose de produção fica em `deploy/`, separado do Compose de desenvolvimento, e usa `${VAR:?}` para falhar se faltar uma variável obrigatória.
 
 **Alternativa descartada:** Autonomous Database da Oracle, porque prenderia o projeto ao provedor.
 
@@ -104,7 +104,7 @@ Como merge na `main` é deploy, o site só deve apontar para a API depois de ela
 
 ### Sem carga artificial para evitar a recuperação da VM
 
-Não usaremos scripts que simulam uso, como NeverIdle ou LookBusy. Isso é frágil e tenta contornar a regra do provedor. A VM tem o tamanho ajustado ao uso real: a instância só é considerada ociosa se CPU, rede e memória ficarem abaixo de 20%, e a memória consumida por Java e PostgreSQL é o caminho legítimo para ficar acima disso. Após 7 dias de medição, se o P95 da memória estiver abaixo de 25%, reduzimos a VM.
+Não usaremos scripts que simulam uso, como NeverIdle ou LookBusy. Isso é frágil e tenta contornar a regra do provedor. A VM tem o tamanho ajustado ao uso real: a instância só é considerada ociosa se CPU, rede e memória ficarem abaixo de 20%, e a memória consumida por Java e PostgreSQL é o caminho legítimo para ficar acima disso. A VM começa com 2 GB porque o teste local mediu cerca de 425 MB entre Java, PostgreSQL e Caddy, sem contar o sistema. Em 4 GB, o uso poderia ficar abaixo do limite de 800 MB. Após 7 dias de medição, ajustamos o tamanho se o P95 da memória estiver abaixo de 25% ou perto do total.
 
 ## Risks / Trade-offs
 
