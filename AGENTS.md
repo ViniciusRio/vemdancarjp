@@ -68,7 +68,7 @@ Migração de Supabase para Java + Spring Boot em andamento; roteiro em `PLAN.md
 ## Decisões
 
 - Antes de propor arquitetura ou mudança de alto risco, consulte os ADRs em `docs/decisions/`. Decisão que vale além de uma change vira ADR lá.
-- Progresso de tarefas fica no `tasks.md` do OpenSpec.
+- Fluxo de trabalho (backlog, em andamento, em revisão) fica no quadro Kanzo, via MCP `kanzo`. O checklist detalhado de cada change continua no `tasks.md` do OpenSpec.
 - **Nunca** coloque segredos, tokens ou dados pessoais em arquivos versionados.
 
 ## Correções recorrentes
