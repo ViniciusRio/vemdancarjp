@@ -7,9 +7,10 @@ O backend já cria e lista eventos no PostgreSQL por rotas administrativas prote
 ## What Changes
 
 - Adicionar `PUT /api/admin/events/{id}` como substituição completa do evento, com o mesmo contrato de corpo e validação do `POST`. Responde `200` com o evento atualizado no formato da listagem administrativa.
-- Adicionar `DELETE /api/admin/events/{id}`. Responde `204` sem corpo.
-- `{id}` aceita só inteiro decimal positivo. Valor inválido recebe `400 {"error":"VALIDATION_ERROR"}`, e `id` inexistente recebe `404 {"error":"NOT_FOUND"}`.
+- Adicionar `DELETE /api/admin/events/{id}`. Responde `204` sem corpo, inclusive quando o evento já não existe, para que uma repetição dê certo.
+- `{id}` aceita só inteiro decimal positivo. Valor inválido recebe `400 {"error":"VALIDATION_ERROR"}`. No `PUT`, um `id` inexistente recebe `404 {"error":"NOT_FOUND"}`.
 - As duas rotas usam a mesma autorização do `POST`: sessão Google OIDC, aprovação `APPROVED` consultada a cada requisição e token CSRF obrigatório.
+- Sem controle de concorrência: na edição, a última gravação prevalece. O risco de perder uma edição feita em outra aba é aceito nesta change e registrado no design.
 - `Cache-Control: no-store` em todas as respostas das duas rotas, inclusive nos erros.
 - Alterar o requisito de isolamento: além do `POST` e do `GET` da coleção, passam a ser liberados só o `PUT` e o `DELETE` do item. Todo o resto de `/api/admin/**` continua bloqueado.
 

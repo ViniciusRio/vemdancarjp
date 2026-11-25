@@ -30,15 +30,15 @@ A edição recebe o mesmo corpo do `POST` e substitui o evento inteiro. Assim, a
 
 ### 2. Respostas
 
-O `PUT` devolve `200` com `AdminEventResponse`, para o painel não precisar fazer uma nova leitura. O `DELETE` devolve `204`. Um `id` inexistente devolve `404 NOT_FOUND` nas duas rotas. **Alternativa descartada:** um `DELETE` idempotente, com `204` mesmo quando o evento não existe. Isso esconderia de quem chama que o evento já tinha sumido. Em nenhum caso o `PUT` cria um evento.
+O `PUT` devolve `200` com `AdminEventResponse`, para o painel não precisar fazer uma nova leitura. O `DELETE` devolve `204`, inclusive quando o evento já não existe. Assim, se a primeira resposta se perder, a repetição também dá certo, e o painel não precisa de caso especial. No `PUT`, um `id` inexistente devolve `404 NOT_FOUND`, e em nenhum caso o `PUT` cria um evento. **Alternativa descartada:** `404` no `DELETE` de evento inexistente. Uma repetição apareceria como falha embora a remoção tivesse dado certo, e o cliente não tem `GET` do item para conferir. Em troca, um `id` digitado errado no `DELETE` não é avisado, o que é aceitável porque o painel só remove ids que ele mesmo listou.
 
 ### 3. Validação antes da busca
 
-O `{id}` chega como `String` e é validado no controller: precisa casar com `[1-9][0-9]{0,18}` e caber em `Long`. Ele e o corpo são validados antes de qualquer acesso ao banco, então um pedido inválido nunca revela se o evento existe. **Alternativa descartada:** declarar `@PathVariable Long`. Isso aceitaria `+5` e zeros à esquerda e jogaria o erro de conversão para o handler global, fora do formato `VALIDATION_ERROR`.
+O `{id}` chega como `String` e é validado no controller: precisa casar com `[1-9][0-9]{0,18}` e caber em `Long`. Ele e o corpo são validados depois da autorização, que já consulta `admin_access`, e antes de qualquer acesso à tabela `events`. Assim, um pedido inválido nunca revela se o evento existe. **Alternativa descartada:** declarar `@PathVariable Long`. Isso aceitaria `+5` e zeros à esquerda e jogaria o erro de conversão para o handler global, fora do formato `VALIDATION_ERROR`.
 
 ### 4. Escrita transacional
 
-Um serviço `EventWriteService` absorve o `EventCreationService` e ganha `update(id, request)` e `delete(id)`, cada um em `@Transactional`. O `update` carrega a entidade, aplica os campos e devolve a entidade salva. O `delete` remove a linha e informa se ela existia, por exemplo com um `deleteByIdReturningCount` ou com um `existsById` seguido do delete na mesma transação. O controller traduz o caso "não encontrado" para `404`. **Alternativa descartada:** manter `EventCreationService` e criar mais dois serviços. Seriam três classes para a mesma entidade, cada uma com um único método.
+Um serviço `EventWriteService` absorve o `EventCreationService` e ganha `update(id, request)` e `delete(id)`, cada um em `@Transactional`. O `update` carrega a entidade, aplica os campos e devolve a entidade salva. O `delete` remove a linha se ela existir e não falha quando ela não existe. O controller traduz o "não encontrado" do `update` para `404`. **Alternativa descartada:** manter `EventCreationService` e criar mais dois serviços. Seriam três classes para a mesma entidade, cada uma com um único método.
 
 ### 5. Segurança e cache
 
@@ -61,7 +61,7 @@ Os testes de integração seguem o padrão de `AdminEventListingIntegrationTest`
 
 ## Risks / Trade-offs
 
-- **[Última escrita vence]** Dois admins editando o mesmo evento se sobrescrevem. → Hoje é aceitável, porque há um único admin. Fica registrado como não objetivo, a revisar no Passo 9.
+- **[Última escrita vence]** Duas abas, dois admins ou uma requisição atrasada podem enviar formulários baseados em estados diferentes. A última gravação apaga a anterior sem aviso. → **Risco aceito por Vinícius como condição desta change.** Hoje há um único admin e o backend não está em produção. O controle de versão (coluna `version`, `409 CONFLICT`) deve ser decidido no Passo 9 ou antes de o painel passar a usar esta rota.
 - **[Remoção definitiva]** Um evento apagado não volta. → O painel deve pedir confirmação, e isso fica a cargo do frontend no Passo 10. Não há backup em produção, porque o backend ainda não foi publicado.
 - **[Matcher com curinga]** Um padrão largo demais liberaria rotas vizinhas. → Os testes de isolamento cobrem `GET`, `PATCH` e subcaminhos de `/api/admin/events/{id}`, além do `PUT` na coleção.
 

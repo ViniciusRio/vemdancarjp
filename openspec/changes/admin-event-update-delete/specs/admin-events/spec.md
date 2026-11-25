@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Edição de evento aprovada
-O sistema SHALL aceitar `PUT /api/admin/events/{id}` somente com sessão Google OIDC válida, aprovação `APPROVED` vigente consultada no banco para o `sub` validado a cada requisição e token CSRF da sessão no cabeçalho `X-CSRF-TOKEN`. A edição SHALL substituir todos os campos editáveis do evento.
+O sistema SHALL aceitar `PUT /api/admin/events/{id}` somente com sessão Google OIDC válida, aprovação `APPROVED` vigente consultada no banco para o `sub` validado a cada requisição e token CSRF da sessão no cabeçalho `X-CSRF-TOKEN`. A edição SHALL substituir todos os campos editáveis do evento. Edições concorrentes do mesmo evento não são detectadas: a última gravação prevalece.
 
 #### Scenario: Administrador aprovado edita evento
 - **WHEN** uma sessão aprovada envia, com CSRF válido, um corpo válido para um `id` existente
@@ -43,23 +43,23 @@ O sistema SHALL aceitar `DELETE /api/admin/events/{id}` somente com sessão Goog
 - **WHEN** uma sessão aprovada envia, com CSRF válido, a remoção de um `id` existente
 - **THEN** o sistema apaga exatamente esse evento e responde `204` sem corpo
 
-#### Scenario: Remoção repetida
-- **WHEN** a mesma remoção é enviada de novo depois de concluída
-- **THEN** o sistema responde `404` com `{"error":"NOT_FOUND"}`
+#### Scenario: Remoção de evento inexistente
+- **WHEN** uma remoção autorizada, com `{id}` válido, aponta para um evento que não existe, inclusive numa repetição de remoção já concluída
+- **THEN** o sistema responde `204` sem corpo e não apaga nenhum outro evento
 
 #### Scenario: Remoção sem autorização
 - **WHEN** a remoção chega sem sessão, sem aprovação vigente, sem CSRF válido ou durante falha na consulta de aprovação
 - **THEN** o sistema responde `401`, `403` ou `5xx` com os mesmos corpos da edição e não apaga o evento
 
 ### Requirement: Identificador do evento
-O segmento `{id}` SHALL ser um inteiro decimal positivo que caiba em 64 bits, sem sinal, espaços ou zeros à esquerda. A validação do identificador e do corpo SHALL vir antes da busca do evento.
+O segmento `{id}` SHALL ser um inteiro decimal positivo que caiba em 64 bits, sem sinal, espaços ou zeros à esquerda. A validação do identificador e do corpo SHALL ocorrer depois da autorização e antes de qualquer leitura ou escrita em eventos.
 
 #### Scenario: Identificador inválido
 - **WHEN** uma requisição autorizada usa `{id}` igual a `0`, negativo, não numérico, com zeros à esquerda ou acima do limite de 64 bits
 - **THEN** o sistema responde `400` com `{"error":"VALIDATION_ERROR"}` e não altera nem apaga nenhum evento
 
-#### Scenario: Evento inexistente
-- **WHEN** uma requisição autorizada, com `{id}` e corpo válidos, aponta para um evento que não existe
+#### Scenario: Edição de evento inexistente
+- **WHEN** uma edição autorizada, com `{id}` e corpo válidos, aponta para um evento que não existe
 - **THEN** o sistema responde `404` com `{"error":"NOT_FOUND"}` e não cria evento
 
 ### Requirement: Respostas de edição e remoção sem cache
@@ -92,3 +92,30 @@ A autorização administrativa SHALL valer apenas para `POST /api/admin/events`,
 #### Scenario: Leitura pública continua aberta
 - **WHEN** um visitante sem sessão solicita `GET /api/agenda`
 - **THEN** o sistema mantém a resposta pública disponível
+
+### Requirement: Autorização restrita da listagem
+O sistema SHALL permitir `GET /api/admin/events` apenas com sessão Google OIDC válida e aprovação `APPROVED` vigente consultada no backend para o `sub` validado. Essa liberação SHALL evoluir a regra anterior que bloqueava o GET, sem alterar o POST, o PUT e o DELETE autorizados por seus próprios requisitos nem liberar outras operações em `/api/admin/**`.
+
+#### Scenario: Sessão aprovada sem CSRF
+- **WHEN** uma sessão Google OIDC aprovada faz `GET /api/admin/events` sem token CSRF
+- **THEN** o sistema retorna a listagem com `200` e não altera eventos
+
+#### Scenario: Sessão ausente
+- **WHEN** a requisição não possui sessão autenticada válida
+- **THEN** o sistema responde `401` com `{"error":"UNAUTHENTICATED"}` e não divulga eventos
+
+#### Scenario: Identidade sem aprovação vigente
+- **WHEN** a identidade autenticada não é Google OIDC validada, não tem registro aprovado ou possui estado diferente de `APPROVED`
+- **THEN** o sistema responde `403` com `{"error":"FORBIDDEN"}` e não divulga eventos
+
+#### Scenario: Revogação na mesma sessão
+- **WHEN** uma sessão aprovada consulta a lista, sua aprovação deixa de ser `APPROVED` no banco e a mesma sessão faz outro GET sem novo login
+- **THEN** a segunda requisição recebe `403` com `{"error":"FORBIDDEN"}` e não divulga eventos
+
+#### Scenario: Falha na consulta de aprovação
+- **WHEN** a consulta ao estado administrativo falha por indisponibilidade de infraestrutura
+- **THEN** a requisição não recebe a lista nem é tratada como ausência normal de aprovação; a falha produz erro `5xx`
+
+#### Scenario: Outras operações administrativas permanecem bloqueadas
+- **WHEN** uma sessão aprovada solicita um método ou caminho administrativo fora de `GET` e `POST /api/admin/events` e de `PUT` e `DELETE /api/admin/events/{id}`
+- **THEN** o sistema nega a requisição e não executa a operação
