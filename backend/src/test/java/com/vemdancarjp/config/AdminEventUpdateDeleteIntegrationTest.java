@@ -29,6 +29,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -198,6 +199,40 @@ class AdminEventUpdateDeleteIntegrationTest {
 
         Mockito.verifyNoInteractions(eventRepository);
         assertThat(eventRepository.count()).isEqualTo(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"%31", "%2B1", "1%20", "%201", "0x1"})
+    void encodedOrNonLiteralIdIsRejectedWithoutTouchingEvents(String rawId) throws Exception {
+        Event stored = eventRepository.saveAndFlush(event("monday", "Original", 1, null, null));
+        URI uri = URI.create("/api/admin/events/" + rawId);
+        Mockito.clearInvocations(eventRepository);
+
+        mockMvc.perform(approved(put(uri), validBody()))
+            .andExpect(status().isBadRequest())
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andExpect(content().string("{\"error\":\"VALIDATION_ERROR\"}"));
+        mockMvc.perform(approved(delete(uri), null))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().string("{\"error\":\"VALIDATION_ERROR\"}"));
+
+        Mockito.verifyNoInteractions(eventRepository);
+        assertThat(eventRepository.findById(stored.getId()).orElseThrow().getName()).isEqualTo("Original");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1;x=1", "1%2F2", "1/"})
+    void pathTricksOnItemRouteAreNotAccepted(String rawPath) throws Exception {
+        Event stored = eventRepository.saveAndFlush(event("monday", "Original", 1, null, null));
+        URI uri = URI.create("/api/admin/events/" + rawPath.replace("1", stored.getId().toString()));
+
+        for (MockHttpServletRequestBuilder request : List.of(put(uri), delete(uri))) {
+            int status = mockMvc.perform(withBody(request, validBody())
+                    .with(authentication(googleAuthentication(APPROVED))).with(csrf()))
+                .andReturn().getResponse().getStatus();
+            assertThat(status).isBetween(400, 499);
+        }
+        assertThat(eventRepository.findById(stored.getId()).orElseThrow().getName()).isEqualTo("Original");
     }
 
     @Test

@@ -15,7 +15,6 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -76,8 +75,8 @@ public class AdminEventController {
     }
 
     @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> update(@PathVariable("id") String id, @RequestBody JsonNode body) {
-        Long eventId = parseId(id);
+    public ResponseEntity<?> update(HttpServletRequest httpRequest, @RequestBody JsonNode body) {
+        Long eventId = parseId(rawIdSegment(httpRequest));
         CreateEventRequest request = parse(body);
         return eventWriteService.update(eventId, request)
             .<ResponseEntity<?>>map(event -> ResponseEntity.ok(new AdminEventResponse(event)))
@@ -86,13 +85,18 @@ public class AdminEventController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable("id") String id) {
-        eventWriteService.delete(parseId(id));
+    public void delete(HttpServletRequest httpRequest) {
+        eventWriteService.delete(parseId(rawIdSegment(httpRequest)));
     }
 
     @ExceptionHandler({InvalidEventRequestException.class, HttpMessageNotReadableException.class})
     public ResponseEntity<Map<String, String>> invalidRequest() {
         return ResponseEntity.badRequest().body(Map.of("error", "VALIDATION_ERROR"));
+    }
+
+    private static String rawIdSegment(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri.substring(uri.lastIndexOf('/') + 1);
     }
 
     private static Long parseId(String id) {
