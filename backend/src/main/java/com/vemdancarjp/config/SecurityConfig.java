@@ -24,15 +24,19 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 
 @Configuration
 public class SecurityConfig {
+
+    private static final Pattern ADMIN_EVENT_ITEM_SEGMENT = Pattern.compile("[^/;]+");
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -65,6 +69,11 @@ public class SecurityConfig {
             (request.getContextPath() + "/api/auth/logout").equals(request.getRequestURI());
         RequestMatcher adminEventListingRoute = request -> "GET".equals(request.getMethod()) &&
             (request.getContextPath() + "/api/admin/events").equals(request.getRequestURI());
+        RequestMatcher adminEventItemWriteRoute = request ->
+            ("PUT".equals(request.getMethod()) || "DELETE".equals(request.getMethod())) &&
+            request.getRequestURI().startsWith(request.getContextPath() + "/api/admin/events/") &&
+            ADMIN_EVENT_ITEM_SEGMENT.matcher(request.getRequestURI()
+                .substring((request.getContextPath() + "/api/admin/events/").length())).matches();
 
         http
             .authorizeHttpRequests(auth -> auth
@@ -76,6 +85,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/oauth2/authorization/google", "/login/oauth2/code/google").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/admin/events").access(adminAccessAuthorizationManager)
                 .requestMatchers(HttpMethod.POST, "/api/admin/events").access(adminAccessAuthorizationManager)
+                .requestMatchers(adminEventItemWriteRoute).access(adminAccessAuthorizationManager)
                 .requestMatchers("/api/admin/**").denyAll()
                 .anyRequest().denyAll())
             .exceptionHandling(errors -> errors
@@ -115,12 +125,12 @@ public class SecurityConfig {
             @Override
             protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                     FilterChain filterChain) throws ServletException, IOException {
-                if (adminEventListingRoute.matches(request)) {
+                if (adminEventListingRoute.matches(request) || adminEventItemWriteRoute.matches(request)) {
                     response.setHeader("Cache-Control", "no-store");
                 }
                 filterChain.doFilter(request, response);
             }
-        }, LogoutFilter.class);
+        }, CsrfFilter.class);
 
         if (clientRegistrations.getIfAvailable() != null) {
             if (clientSecret.isBlank()) {

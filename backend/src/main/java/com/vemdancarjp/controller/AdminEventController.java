@@ -6,15 +6,18 @@ import com.vemdancarjp.dto.response.AdminEventResponse;
 import com.vemdancarjp.dto.response.CreatedEventResponse;
 import com.vemdancarjp.entity.DayOfWeek;
 import com.vemdancarjp.repository.EventRepository;
-import com.vemdancarjp.service.EventCreationService;
+import com.vemdancarjp.service.EventWriteService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -26,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/admin/events")
@@ -36,11 +40,13 @@ public class AdminEventController {
     private static final Set<String> DAY_IDS = Set.copyOf(
         Arrays.stream(DayOfWeek.values()).map(DayOfWeek::id).toList());
 
-    private final EventCreationService eventCreationService;
+    private static final Pattern EVENT_ID = Pattern.compile("[1-9][0-9]{0,18}");
+
+    private final EventWriteService eventWriteService;
     private final EventRepository eventRepository;
 
-    public AdminEventController(EventCreationService eventCreationService, EventRepository eventRepository) {
-        this.eventCreationService = eventCreationService;
+    public AdminEventController(EventWriteService eventWriteService, EventRepository eventRepository) {
+        this.eventWriteService = eventWriteService;
         this.eventRepository = eventRepository;
     }
 
@@ -66,12 +72,38 @@ public class AdminEventController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public CreatedEventResponse create(@RequestBody JsonNode body) {
-        return new CreatedEventResponse(eventCreationService.create(parse(body)));
+        return new CreatedEventResponse(eventWriteService.create(parse(body)));
+    }
+
+    @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> update(@PathVariable("id") String id, @RequestBody JsonNode body) {
+        Long eventId = parseId(id);
+        CreateEventRequest request = parse(body);
+        return eventWriteService.update(eventId, request)
+            .<ResponseEntity<?>>map(event -> ResponseEntity.ok(new AdminEventResponse(event)))
+            .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "NOT_FOUND")));
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable("id") String id) {
+        eventWriteService.delete(parseId(id));
     }
 
     @ExceptionHandler({InvalidEventRequestException.class, HttpMessageNotReadableException.class})
     public ResponseEntity<Map<String, String>> invalidRequest() {
         return ResponseEntity.badRequest().body(Map.of("error", "VALIDATION_ERROR"));
+    }
+
+    private static Long parseId(String id) {
+        if (!EVENT_ID.matcher(id).matches()) {
+            throw new InvalidEventRequestException();
+        }
+        try {
+            return Long.parseLong(id);
+        } catch (NumberFormatException exception) {
+            throw new InvalidEventRequestException();
+        }
     }
 
     private static CreateEventRequest parse(JsonNode body) {

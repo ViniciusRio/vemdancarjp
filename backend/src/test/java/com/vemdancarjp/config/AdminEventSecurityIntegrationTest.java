@@ -227,7 +227,7 @@ class AdminEventSecurityIntegrationTest {
                 .with(authentication(googleAuthentication("isolated-subject"))).with(csrf()))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.error").value("FORBIDDEN"));
-        mockMvc.perform(put("/api/admin/events/1")
+        mockMvc.perform(put("/api/admin/events")
                 .with(authentication(googleAuthentication("isolated-subject"))).with(csrf()))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.error").value("FORBIDDEN"));
