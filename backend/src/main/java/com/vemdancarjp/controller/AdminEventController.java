@@ -2,14 +2,18 @@ package com.vemdancarjp.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vemdancarjp.dto.request.CreateEventRequest;
+import com.vemdancarjp.dto.response.AdminEventResponse;
 import com.vemdancarjp.dto.response.CreatedEventResponse;
 import com.vemdancarjp.entity.DayOfWeek;
+import com.vemdancarjp.repository.EventRepository;
 import com.vemdancarjp.service.EventCreationService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -32,9 +37,30 @@ public class AdminEventController {
         Arrays.stream(DayOfWeek.values()).map(DayOfWeek::id).toList());
 
     private final EventCreationService eventCreationService;
+    private final EventRepository eventRepository;
 
-    public AdminEventController(EventCreationService eventCreationService) {
+    public AdminEventController(EventCreationService eventCreationService, EventRepository eventRepository) {
         this.eventCreationService = eventCreationService;
+        this.eventRepository = eventRepository;
+    }
+
+    @GetMapping
+    public List<AdminEventResponse> list(HttpServletRequest request) {
+        String[] dayIds = request.getParameterValues("dayId");
+        if (dayIds != null) {
+            if (dayIds.length != 1 || !DAY_IDS.contains(dayIds[0])) {
+                throw new InvalidEventRequestException();
+            }
+            return eventRepository.findAllByDayIdOrderBySortOrderAsc(dayIds[0]).stream()
+                .map(AdminEventResponse::new)
+                .toList();
+        }
+
+        var events = eventRepository.findAllByOrderBySortOrderAsc();
+        return Arrays.stream(DayOfWeek.values())
+            .flatMap(day -> events.stream().filter(event -> day.id().equals(event.getDayId())))
+            .map(AdminEventResponse::new)
+            .toList();
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)

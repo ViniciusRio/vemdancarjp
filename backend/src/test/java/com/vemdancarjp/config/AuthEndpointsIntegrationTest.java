@@ -137,7 +137,7 @@ class AuthEndpointsIntegrationTest {
         mockMvc.perform(get("/api/auth/session").session(session)).andExpect(status().isOk());
     }
 
-    @Test void approvedSessionCanCreateEventButOtherAdminRoutesRemainBlocked() throws Exception {
+    @Test void approvedSessionCanListAndCreateEvents() throws Exception {
         insertAccess("subject-a", "APPROVED", "person@example.test");
         MockHttpSession session = oidcSession("subject-a", "person@example.test");
         SecurityContext context = (SecurityContext) session.getAttribute(SPRING_SECURITY_CONTEXT_KEY);
@@ -146,7 +146,7 @@ class AuthEndpointsIntegrationTest {
             .isGranted()).isTrue();
         String csrfToken = token(mockMvc.perform(get("/api/auth/csrf").session(session)).andReturn());
         mockMvc.perform(get("/api/admin/events").session(session))
-            .andExpect(status().isForbidden()).andExpect(jsonPath("$.error").value("FORBIDDEN"));
+            .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
         mockMvc.perform(post("/api/admin/events").session(session).header("X-CSRF-TOKEN", csrfToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""

@@ -52,6 +52,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
@@ -125,6 +126,29 @@ class AdminEventAuthorizationFailureIntegrationTest {
             .isTrue();
         assertThat(createResponse.getBody()).doesNotContain("database unavailable");
         assertThat(eventRepository.count()).isZero();
+    }
+
+    @Test
+    void listingApprovalFailureReturnsNoStoreServerErrorOverHttp() throws Exception {
+        ResponseEntity<Void> login = restTemplate.postForEntity("/test/session", null, Void.class);
+        assertThat(login.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.COOKIE, login.getHeaders().getFirst(HttpHeaders.SET_COOKIE).split(";", 2)[0]);
+
+        ResponseEntity<String> response = restTemplate.exchange("/api/admin/events", HttpMethod.GET,
+            new HttpEntity<>(headers), String.class);
+
+        assertThat(response.getStatusCode().is5xxServerError()).isTrue();
+        assertThat(response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
+        assertThat(response.getBody()).doesNotContain("database unavailable", "\"dayId\"");
+        assertThat(eventRepository.count()).isZero();
+    }
+
+    @Test
+    void listingApprovalFailurePropagatesThroughMockMvc() {
+        assertThatThrownBy(() -> mockMvc.perform(get("/api/admin/events")
+                .with(authentication(googleAuthentication()))))
+            .isInstanceOf(DataAccessResourceFailureException.class);
     }
 
     private static OAuth2AuthenticationToken googleAuthentication() {
