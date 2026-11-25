@@ -24,7 +24,7 @@ Papéis separados, revisão cruzada e aprovação humana. Regras gerais do proje
 
 ### 2. Implementar
 
-- Sempre em branch própria (`feat/...`, `fix/...`, `chore/...`), nunca na `main`. Progresso no `tasks.md`.
+- Sempre em branch própria (`feat/...`, `fix/...`, `chore/...`), nunca na `main`. Card no Kanzo em `doing`; checklist no `tasks.md`.
 - Faça a menor mudança que satisfaça a tarefa, sem refactors não relacionados.
 - **Definição de pronto antes do handoff:** lint, type-check e testes passando, rodados pelo implementador, e `STATUS.md` atualizado. Separe falhas preexistentes das introduzidas pela mudança; não as corrija sem explicar antes.
 
@@ -64,6 +64,17 @@ Em "Arquivos alterados" e "Decisões", ligue código a conceito com `arquivo:lin
 - PRs desse período recebem o label **`sem-revisao-cruzada`**. Quando o Claude Code voltar, ele os revisa, com papéis invertidos. Nada desse período vai para a `main` antes disso.
 - Confira que não há `ANTHROPIC_API_KEY` no ambiente, para não trocar a cobrança da assinatura pela da API.
 
+## Quadro de tarefas (Kanzo)
+
+O [Kanzo](https://github.com/emanuele-em/kanzo) é um kanban local que também é servidor MCP. Vinícius usa o quadro no navegador (`kanzo`, em `http://localhost:4242`); os agentes usam o MCP `kanzo`, que identifica o projeto pelo remote do git.
+
+- **Um card por change do OpenSpec ou tarefa pequena.** O card aponta para a change; o checklist detalhado fica no `tasks.md`, sem duplicar no card.
+- **Pegar trabalho:** o implementador usa `next_task` e move o card para `doing` ao começar. Cards marcados como Human são do Vinícius; agente não pega.
+- **Handoff:** ao abrir o PR, o card vai para `review`, com a URL do PR no card e um comentário curto. O handoff completo continua na descrição do PR.
+- **Concluir:** só Vinícius move para `done`, depois do merge.
+- **Dependências:** use `waits_on` quando um card depende de outro; o `next_task` pula os bloqueados.
+- O quadro é dado local (`~/kanzo`) e não entra no repositório. `STATUS.md` continua sendo o resumo curto do estado.
+
 ## Fluxo de Aprendizado
 
 O objetivo do Fluxo de Aprendizado (`PLAN.md`) continua valendo nos Passos da migração: o dono do projeto precisa entender o que está sendo feito.
@@ -98,7 +109,8 @@ No fluxo sequencial, o revisor somente leitura pode revisar o commit sem worktre
 | Regras, comandos e correções recorrentes | `AGENTS.md` (`CLAUDE.md` só importa esse arquivo) |
 | Estado atual, **no máximo ~15 linhas** | `STATUS.md`, atualizado quando um agente para |
 | Roteiro da migração | `PLAN.md` |
-| Progresso de uma tarefa | `openspec/changes/*/tasks.md` |
+| Fila e estado das tarefas (backlog, doing, review) | Quadro Kanzo (`~/kanzo`, fora do repositório) |
+| Checklist de uma change | `openspec/changes/*/tasks.md` |
 | Decisão de uma change | `design.md` do OpenSpec |
 | Decisão que vale além de uma change | ADR em `docs/decisions/` |
 | Handoff e revisão | Descrição e comentários do PR |

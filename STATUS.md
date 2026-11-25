@@ -1,7 +1,7 @@
 # Estado atual (máx. ~15 linhas; atualizar quando um agente parar)
 ## Feito
 - Backend: agenda pública, OIDC/sessão/CSRF e POST /api/admin/events na main (Passo 8 parcial).
-- Fluxo Claude Code + Codex adotado (docs/AI-WORKFLOW.md).
+- Fluxo Claude Code + Codex adotado (docs/AI-WORKFLOW.md), com quadro Kanzo via MCP.
 ## Bloqueado
 - Produção: home em erro desde 16/09. O build chama /api/agenda sem backend publicado. Primeira tarefa.
 ## Próximo
