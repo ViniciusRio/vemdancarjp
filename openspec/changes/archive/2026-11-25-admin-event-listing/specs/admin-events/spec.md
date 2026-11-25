@@ -95,3 +95,16 @@ O sistema SHALL manter `GET /api/agenda` público, com seu formato agrupado por 
 #### Scenario: Visitante consulta agenda
 - **WHEN** um visitante sem sessão solicita `GET /api/agenda` após a adição da listagem administrativa
 - **THEN** a resposta pública mantém os dias e eventos no formato e na ordem existentes
+
+## MODIFIED Requirements
+
+### Requirement: Isolamento das demais rotas administrativas
+A autorização administrativa SHALL valer apenas para `POST /api/admin/events` e `GET /api/admin/events`. Todas as demais combinações de método e caminho em `/api/admin/**` SHALL continuar bloqueadas, inclusive para sessões `APPROVED`.
+
+#### Scenario: Administrador aprovado tenta outra rota
+- **WHEN** uma sessão aprovada solicita uma operação administrativa diferente de `POST /api/admin/events` e `GET /api/admin/events`
+- **THEN** o sistema nega a requisição e não executa a operação
+
+#### Scenario: Leitura pública continua aberta
+- **WHEN** um visitante sem sessão solicita `GET /api/agenda`
+- **THEN** o sistema mantém a resposta pública disponível
