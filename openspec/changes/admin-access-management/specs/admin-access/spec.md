@@ -30,8 +30,12 @@ Ao iniciar, se `APP_BOOTSTRAP_ADMIN_SUB` estiver definida, não vazia e com form
 - **THEN** a aplicação não sobe, com uma mensagem de erro que não contém o valor, e nenhum registro é criado nem alterado
 
 #### Scenario: Recuperação de sub errado
-- **WHEN** um `sub` errado foi aprovado pelo bootstrap, o operador apaga os registros `APPROVED` direto no banco, corrige a variável e reinicia
+- **WHEN** um `sub` errado foi aprovado pelo bootstrap e o operador, nesta ordem, corrige a variável na configuração de todas as instâncias, confirma que nenhuma instância com o valor antigo continua rodando, apaga os registros `APPROVED` direto no banco e reinicia
 - **THEN** o `sub` corrigido fica `APPROVED`
+
+#### Scenario: Inicializações simultâneas com valores diferentes
+- **WHEN** duas instâncias iniciam ao mesmo tempo, sem nenhum `APPROVED`, cada uma com um `sub` diferente
+- **THEN** exatamente um registro `APPROVED` é criado, e a outra instância ignora a sua variável
 
 ### Requirement: Identificador da própria sessão
 `GET /api/auth/session` SHALL incluir, para uma sessão Google OIDC autenticada, o campo `subject` com o `sub` da própria sessão, além de `authenticated` e `accessStatus`. É assim que o operador obtém o valor de `APP_BOOTSTRAP_ADMIN_SUB`. Nenhuma outra resposta SHALL expor `sub`.

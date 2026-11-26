@@ -70,7 +70,13 @@ O log diz só "aplicado" ou "ignorado", sem o `sub`. **Alternativas descartadas*
 
 **Como obter o `sub`:** `GET /api/auth/session` passa a devolver `subject`, o `sub` da própria sessão. O procedimento fica documentado: subir sem a variável, fazer login, consultar a sessão, copiar o `subject`, definir a variável e reiniciar.
 
-**Recuperação:** se um `sub` errado for aprovado, apagar os registros `APPROVED` no banco, corrigir a variável e reiniciar. Esse procedimento é coberto por teste.
+**Recuperação:** a ordem importa, porque o bootstrap aprova o valor de quem subir primeiro, e não o valor correto.
+1. Corrigir a variável na configuração do serviço, não por instância, e implantar.
+2. Confirmar que nenhuma instância com o valor antigo continua rodando. No Cloud Run, isso quer dizer 100% do tráfego na revisão nova e as instâncias antigas encerradas.
+3. Só então apagar os registros `APPROVED` no banco.
+4. Reiniciar.
+
+Apagar antes de trocar a configuração permite que uma instância antiga reaprove o `sub` errado, como apontou a revisão do Codex. O procedimento vai para o README do backend. Os testes cobrem a recuperação e a disputa entre duas inicializações com valores diferentes, em que só uma aprova.
 
 ### 7. Identificador e validação
 
