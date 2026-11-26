@@ -6,11 +6,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 final class AdminRequestValidation {
 
     private static final Pattern RESOURCE_ID = Pattern.compile("[1-9][0-9]{0,18}");
+    private static final Pattern RESOURCE_UUID =
+        Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
 
     private AdminRequestValidation() {
     }
@@ -26,6 +29,15 @@ final class AdminRequestValidation {
         } catch (NumberFormatException exception) {
             throw new InvalidAdminRequestException();
         }
+    }
+
+    static UUID rawUuid(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String id = uri.substring(uri.lastIndexOf('/') + 1);
+        if (!RESOURCE_UUID.matcher(id).matches()) {
+            throw new InvalidAdminRequestException();
+        }
+        return UUID.fromString(id);
     }
 
     static void requireObjectWithFields(JsonNode body, Set<String> allowedFields) {

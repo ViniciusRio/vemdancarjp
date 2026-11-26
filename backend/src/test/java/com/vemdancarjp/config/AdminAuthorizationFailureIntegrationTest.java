@@ -47,6 +47,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -213,6 +214,35 @@ class AdminAuthorizationFailureIntegrationTest {
                 assertThat(response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
                 assertThat(response.getBody()).doesNotContain("database unavailable");
             }
+        }
+    }
+
+    @Test
+    void accessManagementApprovalFailureReturnsNoStoreServerErrorOverHttp() throws Exception {
+        ResponseEntity<Void> login = restTemplate.postForEntity("/test/session", null, Void.class);
+        String cookie = login.getHeaders().getFirst(HttpHeaders.SET_COOKIE).split(";", 2)[0];
+        HttpHeaders csrfHeaders = new HttpHeaders();
+        csrfHeaders.set(HttpHeaders.COOKIE, cookie);
+        JsonNode csrfBody = objectMapper.readTree(restTemplate.exchange("/api/auth/csrf", HttpMethod.GET,
+            new HttpEntity<>(csrfHeaders), String.class).getBody());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.COOKIE, cookie);
+        headers.set("X-CSRF-TOKEN", csrfBody.path("token").asText());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        String item = "/api/admin/access/" + UUID.randomUUID();
+
+        for (Map.Entry<HttpMethod, String> route : List.of(
+                Map.entry(HttpMethod.GET, "/api/admin/access"),
+                Map.entry(HttpMethod.PUT, item),
+                Map.entry(HttpMethod.DELETE, item))) {
+            ResponseEntity<String> response = restTemplate.exchange(route.getValue(), route.getKey(),
+                new HttpEntity<>("{\"status\":\"APPROVED\"}", headers), String.class);
+            assertThat(response.getStatusCode().is5xxServerError())
+                .withFailMessage("%s %s status=%s", route.getKey(), route.getValue(), response.getStatusCode())
+                .isTrue();
+            assertThat(response.getHeaders().get(HttpHeaders.CACHE_CONTROL)).containsExactly("no-store");
+            assertThat(response.getBody()).doesNotContain("database unavailable");
         }
     }
 

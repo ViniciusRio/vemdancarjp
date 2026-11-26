@@ -31,19 +31,29 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 @Configuration
 public class SecurityConfig {
 
-    private static final List<String> ADMIN_RESOURCES = List.of("events", "variable-venues", "other-venues");
+    private record AdminResource(Set<String> collectionMethods, Set<String> itemMethods) {
+    }
+
+    private static final AdminResource CRUD = new AdminResource(Set.of("GET", "POST"), Set.of("PUT", "DELETE"));
+    private static final Map<String, AdminResource> ADMIN_RESOURCES = Map.of(
+        "events", CRUD,
+        "variable-venues", CRUD,
+        "other-venues", CRUD,
+        "access", new AdminResource(Set.of("GET"), Set.of("PUT", "DELETE")));
     private static final Pattern ADMIN_ITEM_SEGMENT = Pattern.compile("[^/;]+");
 
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             AdminAccessAuthorizationManager adminAccessAuthorizationManager,
+            GoogleIdentityAuthorizationManager googleIdentityAuthorizationManager,
             ObjectProvider<ClientRegistrationRepository> clientRegistrations,
             @Value("${spring.security.oauth2.client.registration.google.client-secret:}") String clientSecret,
             @Value("${APP_FRONTEND_URL:}") String frontendUrl) throws Exception {
@@ -69,15 +79,17 @@ public class SecurityConfig {
 
         RequestMatcher logoutRoute = request -> "POST".equals(request.getMethod()) &&
             (request.getContextPath() + "/api/auth/logout").equals(request.getRequestURI());
+        RequestMatcher accessRequestRoute = request -> "POST".equals(request.getMethod()) &&
+            (request.getContextPath() + "/api/auth/access-request").equals(request.getRequestURI());
         RequestMatcher adminCollectionRoute = request ->
-            ("GET".equals(request.getMethod()) || "POST".equals(request.getMethod())) &&
-            ADMIN_RESOURCES.stream().anyMatch(resource ->
-                (request.getContextPath() + "/api/admin/" + resource).equals(request.getRequestURI()));
+            ADMIN_RESOURCES.entrySet().stream().anyMatch(resource ->
+                resource.getValue().collectionMethods().contains(request.getMethod()) &&
+                (request.getContextPath() + "/api/admin/" + resource.getKey()).equals(request.getRequestURI()));
         RequestMatcher adminItemRoute = request ->
-            ("PUT".equals(request.getMethod()) || "DELETE".equals(request.getMethod())) &&
-            ADMIN_RESOURCES.stream().anyMatch(resource -> {
-                String prefix = request.getContextPath() + "/api/admin/" + resource + "/";
-                return request.getRequestURI().startsWith(prefix) &&
+            ADMIN_RESOURCES.entrySet().stream().anyMatch(resource -> {
+                String prefix = request.getContextPath() + "/api/admin/" + resource.getKey() + "/";
+                return resource.getValue().itemMethods().contains(request.getMethod()) &&
+                    request.getRequestURI().startsWith(prefix) &&
                     ADMIN_ITEM_SEGMENT.matcher(request.getRequestURI().substring(prefix.length())).matches();
             });
 
@@ -88,6 +100,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auth/session").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
+                .requestMatchers(accessRequestRoute).access(googleIdentityAuthorizationManager)
                 .requestMatchers(HttpMethod.GET, "/oauth2/authorization/google", "/login/oauth2/code/google").permitAll()
                 .requestMatchers(adminCollectionRoute).access(adminAccessAuthorizationManager)
                 .requestMatchers(adminItemRoute).access(adminAccessAuthorizationManager)
@@ -130,7 +143,8 @@ public class SecurityConfig {
             @Override
             protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                     FilterChain filterChain) throws ServletException, IOException {
-                if (adminCollectionRoute.matches(request) || adminItemRoute.matches(request)) {
+                if (adminCollectionRoute.matches(request) || adminItemRoute.matches(request) ||
+                        accessRequestRoute.matches(request)) {
                     response.setHeader("Cache-Control", "no-store");
                 }
                 filterChain.doFilter(request, response);
