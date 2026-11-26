@@ -3,6 +3,7 @@ package com.vemdancarjp.config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vemdancarjp.repository.AdminAccessRepository;
+import com.vemdancarjp.entity.Event;
 import com.vemdancarjp.repository.EventRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -149,6 +150,40 @@ class AdminEventAuthorizationFailureIntegrationTest {
         assertThatThrownBy(() -> mockMvc.perform(get("/api/admin/events")
                 .with(authentication(googleAuthentication()))))
             .isInstanceOf(DataAccessResourceFailureException.class);
+    }
+
+    @Test
+    void itemWriteApprovalFailureReturnsNoStoreServerErrorOverHttp() throws Exception {
+        Event stored = new Event();
+        stored.setDayId("monday");
+        stored.setName("Original");
+        stored.setVenue("Salão");
+        stored.setNeighborhood("Centro");
+        stored.setSortOrder(1);
+        Long id = eventRepository.saveAndFlush(stored).getId();
+
+        ResponseEntity<Void> login = restTemplate.postForEntity("/test/session", null, Void.class);
+        String cookie = login.getHeaders().getFirst(HttpHeaders.SET_COOKIE).split(";", 2)[0];
+        HttpHeaders csrfHeaders = new HttpHeaders();
+        csrfHeaders.set(HttpHeaders.COOKIE, cookie);
+        JsonNode csrfBody = objectMapper.readTree(restTemplate.exchange("/api/auth/csrf", HttpMethod.GET,
+            new HttpEntity<>(csrfHeaders), String.class).getBody());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.COOKIE, cookie);
+        headers.set("X-CSRF-TOKEN", csrfBody.path("token").asText());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        for (HttpMethod method : List.of(HttpMethod.PUT, HttpMethod.DELETE)) {
+            ResponseEntity<String> response = restTemplate.exchange("/api/admin/events/" + id, method,
+                new HttpEntity<>(validEvent(), headers), String.class);
+            assertThat(response.getStatusCode().is5xxServerError())
+                .withFailMessage("%s status=%s", method, response.getStatusCode())
+                .isTrue();
+            assertThat(response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
+            assertThat(response.getBody()).doesNotContain("database unavailable");
+        }
+        assertThat(eventRepository.findById(id).orElseThrow().getName()).isEqualTo("Original");
     }
 
     private static OAuth2AuthenticationToken googleAuthentication() {

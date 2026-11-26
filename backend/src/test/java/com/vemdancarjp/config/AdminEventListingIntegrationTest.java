@@ -178,7 +178,7 @@ class AdminEventListingIntegrationTest {
                 .contentType("application/json")
                 .content("{\"dayId\":\"monday\",\"name\":\"Forró\",\"venue\":\"Salão\",\"neighborhood\":\"Centro\",\"sortOrder\":1}"))
             .andExpect(status().isCreated());
-        mockMvc.perform(put("/api/admin/events/1")
+        mockMvc.perform(put("/api/admin/events")
                 .with(authentication(googleAuthentication("approved-subject"))).with(csrf()))
             .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/admin/other-venues")
