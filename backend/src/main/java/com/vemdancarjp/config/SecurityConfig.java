@@ -31,12 +31,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.regex.Pattern;
 
 @Configuration
 public class SecurityConfig {
 
-    private static final Pattern ADMIN_EVENT_ITEM_SEGMENT = Pattern.compile("[^/;]+");
+    private static final List<String> ADMIN_RESOURCES = List.of("events", "variable-venues", "other-venues");
+    private static final Pattern ADMIN_ITEM_SEGMENT = Pattern.compile("[^/;]+");
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -67,13 +69,17 @@ public class SecurityConfig {
 
         RequestMatcher logoutRoute = request -> "POST".equals(request.getMethod()) &&
             (request.getContextPath() + "/api/auth/logout").equals(request.getRequestURI());
-        RequestMatcher adminEventListingRoute = request -> "GET".equals(request.getMethod()) &&
-            (request.getContextPath() + "/api/admin/events").equals(request.getRequestURI());
-        RequestMatcher adminEventItemWriteRoute = request ->
+        RequestMatcher adminCollectionRoute = request ->
+            ("GET".equals(request.getMethod()) || "POST".equals(request.getMethod())) &&
+            ADMIN_RESOURCES.stream().anyMatch(resource ->
+                (request.getContextPath() + "/api/admin/" + resource).equals(request.getRequestURI()));
+        RequestMatcher adminItemRoute = request ->
             ("PUT".equals(request.getMethod()) || "DELETE".equals(request.getMethod())) &&
-            request.getRequestURI().startsWith(request.getContextPath() + "/api/admin/events/") &&
-            ADMIN_EVENT_ITEM_SEGMENT.matcher(request.getRequestURI()
-                .substring((request.getContextPath() + "/api/admin/events/").length())).matches();
+            ADMIN_RESOURCES.stream().anyMatch(resource -> {
+                String prefix = request.getContextPath() + "/api/admin/" + resource + "/";
+                return request.getRequestURI().startsWith(prefix) &&
+                    ADMIN_ITEM_SEGMENT.matcher(request.getRequestURI().substring(prefix.length())).matches();
+            });
 
         http
             .authorizeHttpRequests(auth -> auth
@@ -83,9 +89,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/auth/session").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                 .requestMatchers(HttpMethod.GET, "/oauth2/authorization/google", "/login/oauth2/code/google").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/admin/events").access(adminAccessAuthorizationManager)
-                .requestMatchers(HttpMethod.POST, "/api/admin/events").access(adminAccessAuthorizationManager)
-                .requestMatchers(adminEventItemWriteRoute).access(adminAccessAuthorizationManager)
+                .requestMatchers(adminCollectionRoute).access(adminAccessAuthorizationManager)
+                .requestMatchers(adminItemRoute).access(adminAccessAuthorizationManager)
                 .requestMatchers("/api/admin/**").denyAll()
                 .anyRequest().denyAll())
             .exceptionHandling(errors -> errors
@@ -125,7 +130,7 @@ public class SecurityConfig {
             @Override
             protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                     FilterChain filterChain) throws ServletException, IOException {
-                if (adminEventListingRoute.matches(request) || adminEventItemWriteRoute.matches(request)) {
+                if (adminCollectionRoute.matches(request) || adminItemRoute.matches(request)) {
                     response.setHeader("Cache-Control", "no-store");
                 }
                 filterChain.doFilter(request, response);

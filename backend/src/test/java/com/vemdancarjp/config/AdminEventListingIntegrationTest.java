@@ -181,7 +181,7 @@ class AdminEventListingIntegrationTest {
         mockMvc.perform(put("/api/admin/events")
                 .with(authentication(googleAuthentication("approved-subject"))).with(csrf()))
             .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/admin/other-venues")
+        mockMvc.perform(get("/api/admin/admins")
                 .with(authentication(googleAuthentication("approved-subject"))))
             .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/admin/events/")

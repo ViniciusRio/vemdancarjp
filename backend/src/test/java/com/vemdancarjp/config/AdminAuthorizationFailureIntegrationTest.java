@@ -63,8 +63,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 })
 @AutoConfigureMockMvc
 @Testcontainers
-@Import(AdminEventAuthorizationFailureIntegrationTest.TestSessionConfiguration.class)
-class AdminEventAuthorizationFailureIntegrationTest {
+@Import(AdminAuthorizationFailureIntegrationTest.TestSessionConfiguration.class)
+class AdminAuthorizationFailureIntegrationTest {
 
     @Container
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine");
@@ -184,6 +184,36 @@ class AdminEventAuthorizationFailureIntegrationTest {
             assertThat(response.getBody()).doesNotContain("database unavailable");
         }
         assertThat(eventRepository.findById(id).orElseThrow().getName()).isEqualTo("Original");
+    }
+
+    @Test
+    void venueApprovalFailureReturnsNoStoreServerErrorOverHttp() throws Exception {
+        ResponseEntity<Void> login = restTemplate.postForEntity("/test/session", null, Void.class);
+        String cookie = login.getHeaders().getFirst(HttpHeaders.SET_COOKIE).split(";", 2)[0];
+        HttpHeaders csrfHeaders = new HttpHeaders();
+        csrfHeaders.set(HttpHeaders.COOKIE, cookie);
+        JsonNode csrfBody = objectMapper.readTree(restTemplate.exchange("/api/auth/csrf", HttpMethod.GET,
+            new HttpEntity<>(csrfHeaders), String.class).getBody());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.COOKIE, cookie);
+        headers.set("X-CSRF-TOKEN", csrfBody.path("token").asText());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        String body = "{\"name\":\"Local\",\"neighborhood\":\"Centro\",\"sortOrder\":1}";
+
+        for (String path : List.of("/api/admin/variable-venues", "/api/admin/other-venues")) {
+            for (Map.Entry<HttpMethod, String> route : List.of(
+                    Map.entry(HttpMethod.GET, path), Map.entry(HttpMethod.POST, path),
+                    Map.entry(HttpMethod.PUT, path + "/1"), Map.entry(HttpMethod.DELETE, path + "/1"))) {
+                ResponseEntity<String> response = restTemplate.exchange(route.getValue(), route.getKey(),
+                    new HttpEntity<>(body, headers), String.class);
+                assertThat(response.getStatusCode().is5xxServerError())
+                    .withFailMessage("%s %s status=%s", route.getKey(), route.getValue(), response.getStatusCode())
+                    .isTrue();
+                assertThat(response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
+                assertThat(response.getBody()).doesNotContain("database unavailable");
+            }
+        }
     }
 
     private static OAuth2AuthenticationToken googleAuthentication() {
