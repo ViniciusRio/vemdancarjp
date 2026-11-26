@@ -42,15 +42,18 @@ A checagem de token Google sai de `AdminAccessAuthorizationManager` para um help
 
 `INSERT ... ON CONFLICT (google_sub) DO NOTHING RETURNING id`, por query nativa. Se voltou uma linha, a resposta é `201 PENDING`. Se não, o serviço lê o status atual e responde `200`. Dois pedidos simultâneos do mesmo usuário não geram erro de chave única. O controller nunca lê o corpo. E-mail e nome vêm das claims `email` e `name` do `OidcUser`, ou ficam nulos.
 
-### 4. Aprovação condicional
+### 4. Aprovação condicional com reconferência do executor
 
-`UPDATE admin_access SET status = 'APPROVED' WHERE id = :id AND status = 'PENDING'`, seguido da leitura do registro. Se não existe, a resposta é `404`. Se já estava aprovado, a resposta é `200` sem mudança. A atualização condicional torna aprovações simultâneas inofensivas, sem trava explícita.
+Numa transação:
+1. `SELECT ... FROM admin_access WHERE status = 'APPROVED' FOR UPDATE`, a mesma trava usada pela remoção.
+2. Se o `sub` de quem executa não está entre os travados, responder `403 FORBIDDEN`. Isso fecha a janela entre a autorização, que acontece no filtro, e a escrita.
+3. `UPDATE admin_access SET status = 'APPROVED' WHERE id = :id AND status = 'PENDING'`, seguido da leitura do registro. Se não existe, a resposta é `404`. Se já estava aprovado, a resposta é `200` sem mudança. A atualização condicional torna aprovações simultâneas inofensivas. Como aprovação e remoção travam o mesmo conjunto de linhas, uma revogação em andamento faz a aprovação do revogado esperar e, ao seguir, falhar com `403`.
 
 ### 5. Remoção com trava nos aprovados
 
 Numa transação:
 1. Comparar o `google_sub` do alvo com o `sub` da sessão. Se for o mesmo, responder `409 CANNOT_REMOVE_SELF`.
-2. Rodar `SELECT id FROM admin_access WHERE status = 'APPROVED' FOR UPDATE`.
+2. Rodar `SELECT id, google_sub FROM admin_access WHERE status = 'APPROVED' FOR UPDATE`. Se o executor não está entre os travados, responder `403 FORBIDDEN`.
 3. Reler o alvo. Se não existe, responder `204`.
 4. Se o alvo é `APPROVED` e a contagem travada é `<= 1`, responder `409 LAST_ADMIN`.
 5. Caso contrário, apagar.
@@ -59,11 +62,15 @@ No PostgreSQL em `READ COMMITTED`, a segunda transação espera a trava e, ao se
 
 ### 6. Primeiro admin
 
-`AdminBootstrap`, um `ApplicationRunner`, lê `APP_BOOTSTRAP_ADMIN_SUB`. Se a variável vier vazia, não faz nada. Se vier preenchida, numa transação:
+`AdminBootstrap`, um `ApplicationRunner`, lê `APP_BOOTSTRAP_ADMIN_SUB`. Se a variável vier vazia, não faz nada. Se o valor não casar `[A-Za-z0-9]{1,255}`, a aplicação falha ao subir, com uma mensagem que não contém o valor. Se vier preenchida, numa transação:
 1. `pg_advisory_xact_lock` fixo, para serializar várias instâncias subindo ao mesmo tempo;
 2. se não existe `APPROVED`, `INSERT ... ON CONFLICT (google_sub) DO UPDATE SET status = 'APPROVED'`.
 
 O log diz só "aplicado" ou "ignorado", sem o `sub`. **Alternativas descartadas** (escolha do Vinícius): SQL manual e comando de CLI.
+
+**Como obter o `sub`:** `GET /api/auth/session` passa a devolver `subject`, o `sub` da própria sessão. O procedimento fica documentado: subir sem a variável, fazer login, consultar a sessão, copiar o `subject`, definir a variável e reiniciar.
+
+**Recuperação:** se um `sub` errado for aprovado, apagar os registros `APPROVED` no banco, corrigir a variável e reiniciar. Esse procedimento é coberto por teste.
 
 ### 7. Identificador e validação
 
@@ -80,7 +87,8 @@ O log diz só "aplicado" ou "ignorado", sem o `sub`. **Alternativas descartadas*
 
 - **[Variável esquecida no ambiente]** Se alguém apagar todos os admins direto no banco, a variável volta a valer no próximo boot. → É o comportamento desejado para recuperação. O ADR deve registrar que ela pode ficar definida.
 - **[Sem histórico]** Apagar a linha perde quem foi rejeitado. → Decisão do Vinícius. Pode ser revista com um status novo, em outra change.
-- **[E-mail não verificado]** A claim `email` pode não estar verificada. → Ela é só informativa na listagem. A autorização usa apenas o `sub`.
+- **[Aprovar a pessoa errada]** A listagem identifica o solicitante pelo e-mail. → O pedido só é aceito com `email` e `email_verified == true` no token (`403 EMAIL_NOT_VERIFIED` caso contrário), então todo pedido listado tem um e-mail verificado pelo Google.
+- **[`subject` na sessão]** A resposta da sessão passa a incluir o próprio `sub`. → Ele só é mostrado ao dono da sessão, com `no-store`. O `sub` é um identificador, não uma credencial.
 
 ## Migration Plan
 

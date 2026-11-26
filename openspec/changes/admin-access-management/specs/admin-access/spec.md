@@ -7,7 +7,7 @@ Controlar quem é administrador: criar o primeiro admin de forma controlada, rec
 ## ADDED Requirements
 
 ### Requirement: Primeiro administrador
-Ao iniciar, se `APP_BOOTSTRAP_ADMIN_SUB` estiver definida e não vazia e não existir nenhum registro `APPROVED`, o sistema SHALL deixar `APPROVED` o registro com aquele `sub`, criando-o se não existir. Se já existir algum registro `APPROVED`, a variável SHALL ser ignorada, sem alterar nenhum registro. O valor do `sub` não SHALL aparecer em logs.
+Ao iniciar, se `APP_BOOTSTRAP_ADMIN_SUB` estiver definida, não vazia e com formato válido, e não existir nenhum registro `APPROVED`, o sistema SHALL deixar `APPROVED` o registro com aquele `sub`, criando-o se não existir. Se já existir algum registro `APPROVED`, a variável SHALL ser ignorada, sem alterar nenhum registro. O valor do `sub` não SHALL aparecer em logs.
 
 #### Scenario: Base sem admin
 - **WHEN** o sistema inicia com a variável definida e nenhum registro `APPROVED`
@@ -25,8 +25,23 @@ Ao iniciar, se `APP_BOOTSTRAP_ADMIN_SUB` estiver definida e não vazia e não ex
 - **WHEN** o sistema inicia sem a variável ou com ela vazia
 - **THEN** nenhum registro é criado nem alterado, e a aplicação sobe normalmente
 
+#### Scenario: Formato inválido
+- **WHEN** o valor da variável tem espaços, caracteres fora de `[A-Za-z0-9]` ou mais de 255 caracteres
+- **THEN** a aplicação não sobe, com uma mensagem de erro que não contém o valor, e nenhum registro é criado nem alterado
+
+#### Scenario: Recuperação de sub errado
+- **WHEN** um `sub` errado foi aprovado pelo bootstrap, o operador apaga os registros `APPROVED` direto no banco, corrige a variável e reinicia
+- **THEN** o `sub` corrigido fica `APPROVED`
+
+### Requirement: Identificador da própria sessão
+`GET /api/auth/session` SHALL incluir, para uma sessão Google OIDC autenticada, o campo `subject` com o `sub` da própria sessão, além de `authenticated` e `accessStatus`. É assim que o operador obtém o valor de `APP_BOOTSTRAP_ADMIN_SUB`. Nenhuma outra resposta SHALL expor `sub`.
+
+#### Scenario: Consultar o próprio sub
+- **WHEN** um usuário Google autenticado consulta a sessão
+- **THEN** a resposta traz `subject` igual ao `sub` do seu token, com `Cache-Control: no-store`
+
 ### Requirement: Pedido de acesso
-`POST /api/auth/access-request` SHALL exigir sessão Google OIDC válida (emissor Google e `sub` presentes) e token CSRF, sem exigir aprovação. Sem registro para o `sub`, SHALL criar um `PENDING` com e-mail e nome do token. Com registro existente, não SHALL alterar nada. O corpo da requisição SHALL ser ignorado e nunca altera status, e-mail, nome ou `sub`.
+`POST /api/auth/access-request` SHALL exigir sessão Google OIDC válida (emissor Google e `sub` presentes) e token CSRF, sem exigir aprovação. Sem registro para o `sub`, SHALL criar um `PENDING` com e-mail e nome do token, mas só se o token tiver `email` e `email_verified` igual a `true`. Com registro existente, não SHALL alterar nada. O corpo da requisição SHALL ser ignorado e nunca altera status, e-mail, nome ou `sub`.
 
 #### Scenario: Primeiro pedido
 - **WHEN** um usuário Google sem registro envia o pedido com CSRF válido
@@ -39,6 +54,10 @@ Ao iniciar, se `APP_BOOTSTRAP_ADMIN_SUB` estiver definida e não vazia e não ex
 #### Scenario: Sem sessão Google válida
 - **WHEN** o pedido chega sem sessão, com identidade não OIDC ou com emissor diferente do Google
 - **THEN** o sistema responde `401 {"error":"UNAUTHENTICATED"}` sem sessão, ou `403 {"error":"FORBIDDEN"}` nos demais casos, e não cria registro
+
+#### Scenario: E-mail não verificado
+- **WHEN** um usuário Google sem registro envia o pedido e o token não tem `email` ou tem `email_verified` diferente de `true`
+- **THEN** o sistema responde `403 {"error":"EMAIL_NOT_VERIFIED"}` e não cria registro
 
 #### Scenario: Sem CSRF válido
 - **WHEN** uma sessão Google envia o pedido sem token CSRF válido
@@ -64,7 +83,7 @@ O sistema SHALL liberar só três rotas de gestão: `GET /api/admin/access`, `PU
 - **THEN** o sistema responde com erro `5xx`, sem apresentar a falha como `403`, e não altera registros
 
 ### Requirement: Listagem de acessos
-`GET /api/admin/access` SHALL responder `200` com um array de todos os registros. Os `PENDING` vêm primeiro e os `APPROVED` depois. Dentro de cada grupo, a ordem é por `requestedAt` crescente. Cada item SHALL ter exatamente `id`, `email`, `name`, `status` e `requestedAt` (ISO-8601 em UTC), com nulos explícitos. O `sub` Google não SHALL aparecer.
+`GET /api/admin/access` SHALL responder `200` com um array de todos os registros. Os `PENDING` vêm primeiro e os `APPROVED` depois. Dentro de cada grupo, a ordem é por `requestedAt` crescente. Cada item SHALL ter exatamente `id`, `email`, `name`, `status` e `requestedAt` (ISO-8601 em UTC), com nulos explícitos. O `email` de um pedido é sempre verificado pelo Google. Só registros criados pelo bootstrap podem ter `email` nulo. O `sub` Google não SHALL aparecer.
 
 #### Scenario: Lista mista
 - **WHEN** existem registros pendentes e aprovados criados em momentos diferentes
@@ -103,6 +122,17 @@ O sistema SHALL liberar só três rotas de gestão: `GET /api/admin/access`, `PU
 #### Scenario: Revogações cruzadas simultâneas
 - **WHEN** existem exatamente dois admins e cada um tenta, ao mesmo tempo, revogar o outro
 - **THEN** no máximo uma revogação é concluída, a outra recebe `409 {"error":"LAST_ADMIN"}`, e continua existindo pelo menos um `APPROVED`
+
+### Requirement: Reconferência de quem executa
+Na mesma transação de cada aprovação ou remoção, o sistema SHALL reconferir e travar o registro `APPROVED` de quem faz a requisição. Se ele não existir mais, o sistema SHALL responder `403 {"error":"FORBIDDEN"}` sem alterar nada. Isso fecha a janela entre a autorização e a escrita.
+
+#### Scenario: Executor revogado durante a aprovação
+- **WHEN** a aprovação de B já passou pela autorização e, antes de gravar, outro admin revoga B
+- **THEN** a aprovação de B recebe `403 {"error":"FORBIDDEN"}`, e o pedido continua `PENDING`
+
+#### Scenario: Executor revogado durante a remoção
+- **WHEN** a remoção feita por B já passou pela autorização e, antes de gravar, outro admin revoga B
+- **THEN** a remoção de B recebe `403 {"error":"FORBIDDEN"}` e não apaga nada
 
 ### Requirement: Identificador de acesso
 O segmento `{id}` SHALL ser validado como aparece na URI, sem decodificação, e SHALL ser um UUID canônico em minúsculas (`8-4-4-4-12` caracteres hexadecimais). A validação do identificador e do corpo SHALL ocorrer depois da autorização e antes de qualquer leitura ou escrita em `admin_access` além da própria checagem de aprovação.
