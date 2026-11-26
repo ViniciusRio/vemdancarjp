@@ -309,8 +309,9 @@ class AdminAccessManagementIntegrationTest {
         insert("thirdAdmin", "APPROVED", "third@example.test", null, Instant.parse("2026-01-03T00:00:00Z"));
         UUID pending = idOf(REQUESTER);
         UUID third = idOf("thirdAdmin");
+        UUID otherAdmin = idOf(OTHER_ADMIN);
 
-        ExecutorService executor = Executors.newFixedThreadPool(2);
+        ExecutorService executor = Executors.newFixedThreadPool(3);
         try (Connection holder = dataSource.getConnection()) {
             holder.setAutoCommit(false);
             try (Statement statement = holder.createStatement()) {
@@ -321,10 +322,12 @@ class AdminAccessManagementIntegrationTest {
                 mockMvc.perform(approve(pending, OTHER_ADMIN)).andReturn().getResponse());
             Future<MockHttpServletResponse> removal = executor.submit(() ->
                 mockMvc.perform(remove(third, OTHER_ADMIN)).andReturn().getResponse());
-            waitForLockWaiters(2);
+            Future<MockHttpServletResponse> selfRemoval = executor.submit(() ->
+                mockMvc.perform(remove(otherAdmin, OTHER_ADMIN)).andReturn().getResponse());
+            waitForLockWaiters(3);
             holder.commit();
 
-            for (Future<MockHttpServletResponse> blocked : List.of(approval, removal)) {
+            for (Future<MockHttpServletResponse> blocked : List.of(approval, removal, selfRemoval)) {
                 MockHttpServletResponse response = blocked.get(30, TimeUnit.SECONDS);
                 assertThat(response.getStatus()).isEqualTo(403);
                 assertThat(response.getContentAsString()).isEqualTo("{\"error\":\"FORBIDDEN\"}");

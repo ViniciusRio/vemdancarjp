@@ -75,17 +75,15 @@ public class AdminAccessService {
 
     @Transactional
     public void remove(String executorSubject, UUID id) {
-        List<String> targetSubject = jdbcTemplate.queryForList(
-            "SELECT google_sub FROM admin_access WHERE id = ?", String.class, id);
-        if (targetSubject.contains(executorSubject)) {
-            throw new CannotRemoveSelfException();
-        }
         List<String> approved = lockApproved();
         requireExecutorApproved(executorSubject, approved);
         List<Map<String, Object>> target = jdbcTemplate.queryForList(
             "SELECT google_sub, status FROM admin_access WHERE id = ?", id);
         if (target.isEmpty()) {
             return;
+        }
+        if (executorSubject.equals(target.get(0).get("google_sub"))) {
+            throw new CannotRemoveSelfException();
         }
         if ("APPROVED".equals(target.get(0).get("status")) && approved.size() <= 1) {
             throw new IllegalStateException("Removing this access would leave no approved admin");

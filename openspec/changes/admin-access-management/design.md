@@ -57,13 +57,15 @@ Numa transação:
 ### 5. Remoção com trava nos aprovados
 
 Numa transação:
-1. Comparar o `google_sub` do alvo com o `sub` da sessão. Se for o mesmo, responder `409 CANNOT_REMOVE_SELF`.
-2. Rodar `SELECT id, google_sub FROM admin_access WHERE status = 'APPROVED' FOR UPDATE`. Se o executor não está entre os travados, responder `403 FORBIDDEN`.
-3. Reler o alvo. Se não existe, responder `204`.
-4. Checagem defensiva: se o alvo é `APPROVED` e a contagem travada é `<= 1`, lançar um erro interno (`5xx`), sem apagar. Pelos passos 1 e 2, isso não deveria acontecer: o executor está aprovado e é diferente do alvo, então a contagem é pelo menos 2.
+1. Rodar `SELECT id, google_sub FROM admin_access WHERE status = 'APPROVED' FOR UPDATE`. Se o executor não está entre os travados, responder `403 FORBIDDEN`.
+2. Ler o alvo. Se não existe, responder `204`.
+3. Comparar o `google_sub` do alvo com o `sub` da sessão. Se for o mesmo, responder `409 CANNOT_REMOVE_SELF`.
+4. Checagem defensiva: se o alvo é `APPROVED` e a contagem travada é `<= 1`, lançar um erro interno (`5xx`), sem apagar. Pelos passos 1 e 3, isso não deveria acontecer: o executor está aprovado e é diferente do alvo, então a contagem é pelo menos 2.
 5. Caso contrário, apagar.
 
-No PostgreSQL em `READ COMMITTED`, a segunda transação espera a trava e, ao seguir, enxerga a linha já apagada pela primeira. Numa revogação cruzada entre dois admins, quem perde a disputa já não está entre os `APPROVED` travados, então a reconferência do passo 2 responde `403 FORBIDDEN`. Nunca se fica sem admin por causa dos passos 1 e 2: remover a si mesmo é proibido, e o executor precisa estar aprovado e travado. Por isso não existe um erro `LAST_ADMIN` no contrato. O passo 4 só protege contra um bug futuro nessas duas regras.
+A reconferência vem antes da checagem de remover a si mesmo. Assim, um executor revogado depois da autorização recebe `403`, e não `409`, inclusive quando o alvo é o próprio registro, como apontou a revisão do Codex no PR.
+
+No PostgreSQL em `READ COMMITTED`, a segunda transação espera a trava e, ao seguir, enxerga a linha já apagada pela primeira. Numa revogação cruzada entre dois admins, quem perde a disputa já não está entre os `APPROVED` travados, então a reconferência do passo 1 responde `403 FORBIDDEN`. Nunca se fica sem admin por causa dos passos 1 e 3: remover a si mesmo é proibido, e o executor precisa estar aprovado e travado. Por isso não existe um erro `LAST_ADMIN` no contrato. O passo 4 só protege contra um bug futuro nessas duas regras.
 
 ### 6. Primeiro admin
 
