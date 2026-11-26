@@ -109,7 +109,7 @@ O sistema SHALL liberar só três rotas de gestão: `GET /api/admin/access`, `PU
 - **THEN** o sistema responde `400 {"error":"VALIDATION_ERROR"}` e não altera o registro
 
 ### Requirement: Rejeição e revogação
-`DELETE /api/admin/access/{id}` SHALL apagar o registro, rejeitando um pedido `PENDING` ou revogando um `APPROVED`, e responder `204` sem corpo, inclusive quando o registro já não existe. O sistema SHALL recusar com `409 {"error":"CANNOT_REMOVE_SELF"}` a remoção do registro do próprio admin que faz a requisição. SHALL recusar com `409 {"error":"LAST_ADMIN"}` a remoção que deixaria a base sem nenhum `APPROVED`. A segunda regra SHALL valer também quando duas remoções correm ao mesmo tempo.
+`DELETE /api/admin/access/{id}` SHALL apagar o registro, rejeitando um pedido `PENDING` ou revogando um `APPROVED`, e responder `204` sem corpo, inclusive quando o registro já não existe. O sistema SHALL recusar com `409 {"error":"CANNOT_REMOVE_SELF"}` a remoção do registro do próprio admin que faz a requisição. Somada à reconferência de quem executa, essa regra SHALL garantir que nenhuma remoção, nem duas simultâneas, deixe a base sem nenhum `APPROVED`.
 
 #### Scenario: Rejeitar pedido
 - **WHEN** um admin aprovado remove um pedido `PENDING`
@@ -123,9 +123,13 @@ O sistema SHALL liberar só três rotas de gestão: `GET /api/admin/access`, `PU
 - **WHEN** um admin tenta remover o próprio registro
 - **THEN** o sistema responde `409 {"error":"CANNOT_REMOVE_SELF"}` e mantém o registro
 
+#### Scenario: Único admin
+- **WHEN** o único admin aprovado tenta remover o próprio registro
+- **THEN** o sistema responde `409 {"error":"CANNOT_REMOVE_SELF"}`, e o registro continua `APPROVED`
+
 #### Scenario: Revogações cruzadas simultâneas
 - **WHEN** existem exatamente dois admins e cada um tenta, ao mesmo tempo, revogar o outro
-- **THEN** no máximo uma revogação é concluída, a outra recebe `409 {"error":"LAST_ADMIN"}`, e continua existindo pelo menos um `APPROVED`
+- **THEN** exatamente uma revogação é concluída com `204`, a outra recebe `403 {"error":"FORBIDDEN"}` porque quem a fez já foi revogado, e continua existindo exatamente um `APPROVED`
 
 ### Requirement: Reconferência de quem executa
 Na mesma transação de cada aprovação ou remoção, o sistema SHALL reconferir e travar o registro `APPROVED` de quem faz a requisição. Se ele não existir mais, o sistema SHALL responder `403 {"error":"FORBIDDEN"}` sem alterar nada. Isso fecha a janela entre a autorização e a escrita.

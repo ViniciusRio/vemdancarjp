@@ -8,7 +8,7 @@
 ## 2. Domínio
 
 - [ ] 2.1 Criar o `AdminBootstrap` (`ApplicationRunner`, validação de formato com falha ao subir, advisory lock, upsert só sem `APPROVED`, log sem o `sub`). Documentar `APP_BOOTSTRAP_ADMIN_SUB`, o procedimento para obter o `sub` e a recuperação no `.env.example` e no README do backend. Incluir `subject` em `GET /api/auth/session`. Verificação: teste 3.1.
-- [ ] 2.2 Criar o `AdminAccessService` com pedido (`ON CONFLICT DO NOTHING`, exigindo `email_verified`), listagem ordenada, aprovação e remoção que travam os `APPROVED` com `FOR UPDATE` e reconferem o executor (`403`), aprovação condicional, `CANNOT_REMOVE_SELF` e `LAST_ADMIN`. Verificação: testes 3.2 a 3.7.
+- [ ] 2.2 Criar o `AdminAccessService` com pedido (`ON CONFLICT DO NOTHING`, exigindo `email_verified`), listagem ordenada, aprovação e remoção que travam os `APPROVED` com `FOR UPDATE` e reconferem o executor (`403`), aprovação condicional, `CANNOT_REMOVE_SELF` e uma checagem defensiva de que a contagem de `APPROVED` nunca chega a zero. Verificação: testes 3.2 a 3.7.
 - [ ] 2.3 Criar o controller de pedido de acesso e o `AdminAccessController` (`GET`, `PUT /{id}` e `DELETE /{id}`), com `rawUuid` em `AdminRequestValidation` e o controller incluído no advice de `400`. Verificação: testes da seção 3.
 
 ## 3. Testes
@@ -18,7 +18,7 @@
 - [ ] 3.3 Listagem: pendentes antes de aprovados, cada grupo por `requestedAt`; exatamente os campos `id`, `email`, `name`, `status` e `requestedAt`; nenhum valor de `sub` no corpo.
 - [ ] 3.4 Aprovação: pendente vira `APPROVED` e a pessoa acessa `GET /api/admin/events` na requisição seguinte; já aprovado `200` sem mudança; inexistente `404`; corpos inválidos (`PENDING`, outro status, campo extra, não objeto, JSON malformado) `400`; aprovações simultâneas terminam em `200` com um único registro.
 - [ ] 3.5 Executor revogado no meio da operação, de forma determinística: um teste segura a trava dos `APPROVED` numa transação, revoga B, dispara o `PUT` e o `DELETE` de B (bloqueados) e só então confirma. Os dois recebem `403`, e nada muda.
-- [ ] 3.6 Remoção: rejeitar pendente `204` e a pessoa pode pedir de novo; revogar admin com sessão ativa faz a próxima requisição dessa sessão dar `403`; remoção repetida `204`; remover a si mesmo `409 CANNOT_REMOVE_SELF`; último admin `409 LAST_ADMIN`; revogação cruzada simultânea entre dois admins deixa pelo menos um `APPROVED` e no máximo uma remoção concluída, repetida várias vezes.
+- [ ] 3.6 Remoção: rejeitar pendente `204` e a pessoa pode pedir de novo; revogar admin com sessão ativa faz a próxima requisição dessa sessão dar `403`; remoção repetida `204`; remover a si mesmo `409 CANNOT_REMOVE_SELF`, inclusive sendo o único admin; revogação cruzada simultânea entre dois admins termina, em todas as repetições, com exatamente um `204`, exatamente um `403 FORBIDDEN` e exatamente um `APPROVED`.
 - [ ] 3.7 `{id}` inválido (maiúsculas, sem hífens, `%` codificado, numérico, tamanho errado) `400` no `PUT` e no `DELETE`, sem alterar registros.
 - [ ] 3.8 Autorização e isolamento: `401` e `403` nas três rotas de gestão, revogação na mesma sessão, `CSRF_INVALID` no `PUT` e no `DELETE`, `POST /api/admin/access`, `GET` e `PATCH` no item e subcaminho negados, `no-store` exato em todas as respostas.
 - [ ] 3.9 Falha na consulta de aprovação devolve `5xx` com `no-store` nas rotas de gestão, pela cadeia HTTP real.

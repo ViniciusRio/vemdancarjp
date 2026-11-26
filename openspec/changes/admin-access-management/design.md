@@ -16,7 +16,7 @@ O que existe hoje:
 **Goals:**
 
 - Nenhum caminho HTTP aprova ninguém, exceto `PUT /api/admin/access/{id}` feito por um admin já aprovado.
-- As regras "não remover a si mesmo" e "não remover o último admin" valem sob concorrência, garantidas pelo banco e não só pela aplicação.
+- Nunca ficar sem admin, mesmo sob concorrência, garantido pelo banco e não só pela aplicação.
 
 **Non-Goals:**
 
@@ -55,10 +55,10 @@ Numa transação:
 1. Comparar o `google_sub` do alvo com o `sub` da sessão. Se for o mesmo, responder `409 CANNOT_REMOVE_SELF`.
 2. Rodar `SELECT id, google_sub FROM admin_access WHERE status = 'APPROVED' FOR UPDATE`. Se o executor não está entre os travados, responder `403 FORBIDDEN`.
 3. Reler o alvo. Se não existe, responder `204`.
-4. Se o alvo é `APPROVED` e a contagem travada é `<= 1`, responder `409 LAST_ADMIN`.
+4. Checagem defensiva: se o alvo é `APPROVED` e a contagem travada é `<= 1`, lançar um erro interno (`5xx`), sem apagar. Pelos passos 1 e 2, isso não deveria acontecer: o executor está aprovado e é diferente do alvo, então a contagem é pelo menos 2.
 5. Caso contrário, apagar.
 
-No PostgreSQL em `READ COMMITTED`, a segunda transação espera a trava e, ao seguir, enxerga a linha já apagada pela primeira. Por isso, numa revogação cruzada entre dois admins, a segunda recebe `LAST_ADMIN`. **Alternativa descartada:** isolamento `SERIALIZABLE` com retry. Mais complexo para um caso que a trava resolve.
+No PostgreSQL em `READ COMMITTED`, a segunda transação espera a trava e, ao seguir, enxerga a linha já apagada pela primeira. Numa revogação cruzada entre dois admins, quem perde a disputa já não está entre os `APPROVED` travados, então a reconferência do passo 2 responde `403 FORBIDDEN`. Nunca se fica sem admin por causa dos passos 1 e 2: remover a si mesmo é proibido, e o executor precisa estar aprovado e travado. Por isso não existe um erro `LAST_ADMIN` no contrato. O passo 4 só protege contra um bug futuro nessas duas regras.
 
 ### 6. Primeiro admin
 
