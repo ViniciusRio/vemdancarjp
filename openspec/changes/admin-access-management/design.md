@@ -40,7 +40,12 @@ A checagem de token Google sai de `AdminAccessAuthorizationManager` para um help
 
 ### 3. Pedido de acesso sem corrida
 
-`INSERT ... ON CONFLICT (google_sub) DO NOTHING RETURNING id`, por query nativa. Se voltou uma linha, a resposta é `201 PENDING`. Se não, o serviço lê o status atual e responde `200`. Dois pedidos simultâneos do mesmo usuário não geram erro de chave única. O controller nunca lê o corpo. E-mail e nome vêm das claims `email` e `name` do `OidcUser`, ou ficam nulos.
+A ordem é:
+1. Se já existe registro para o `sub`, responder `200` com o status atual, sem alterar nada e sem olhar o e-mail.
+2. Se não existe e o token não tem `email` não vazio com `email_verified == true`, responder `403 EMAIL_NOT_VERIFIED` sem gravar.
+3. Caso contrário, `INSERT ... ON CONFLICT (google_sub) DO NOTHING RETURNING id`, por query nativa. Se voltou uma linha, a resposta é `201 PENDING`. Se não, um pedido simultâneo criou o registro: ler o status e responder `200`.
+
+Dois pedidos simultâneos do mesmo usuário não geram erro de chave única. O controller nunca lê o corpo. O e-mail vem da claim `email` e é sempre preenchido num pedido criado. O nome vem da claim `name` e pode ficar nulo.
 
 ### 4. Aprovação condicional com reconferência do executor
 
