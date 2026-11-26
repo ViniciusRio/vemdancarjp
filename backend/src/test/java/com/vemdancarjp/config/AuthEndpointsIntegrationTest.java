@@ -69,6 +69,7 @@ class AuthEndpointsIntegrationTest {
             .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
             .andExpect(jsonPath("$.authenticated").value(true))
             .andExpect(jsonPath("$.accessStatus").value("NONE"))
+            .andExpect(jsonPath("$.subject").value("subject-a"))
             .andExpect(jsonPath("$.email").doesNotExist())
             .andExpect(jsonPath("$.sub").doesNotExist());
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM admin_access", Integer.class)).isEqualTo(1);

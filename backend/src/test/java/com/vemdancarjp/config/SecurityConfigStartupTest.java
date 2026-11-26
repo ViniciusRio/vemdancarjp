@@ -20,7 +20,8 @@ class SecurityConfigStartupTest {
             SecurityAutoConfiguration.class,
             OAuth2ClientAutoConfiguration.class))
         .withUserConfiguration(SecurityConfig.class)
-        .withBean(AdminAccessAuthorizationManager.class, () -> mock(AdminAccessAuthorizationManager.class));
+        .withBean(AdminAccessAuthorizationManager.class, () -> mock(AdminAccessAuthorizationManager.class))
+        .withBean(GoogleIdentityAuthorizationManager.class, GoogleIdentityAuthorizationManager::new);
 
     @Test
     void completeConfigurationStarts() {

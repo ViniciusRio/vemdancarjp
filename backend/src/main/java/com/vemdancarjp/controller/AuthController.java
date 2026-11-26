@@ -32,7 +32,7 @@ public class AuthController {
             .map(access -> access.getStatus().name())
             .orElse("NONE");
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-            .body(Map.of("authenticated", true, "accessStatus", status));
+            .body(Map.of("authenticated", true, "accessStatus", status, "subject", oidcUser.getSubject()));
     }
 
     @GetMapping("/api/auth/csrf")

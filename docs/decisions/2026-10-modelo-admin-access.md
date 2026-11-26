@@ -20,7 +20,10 @@ Criar uma tabela aditiva `admin_access` com UUID interno, Google `sub` textual �
 
 - Uma única linha por `google_sub` impede pendência e aprovação simultâneas para a mesma identidade.
 - Unicidade e estados válidos são garantidos no PostgreSQL; concorrência de operações administrativas ainda exigirá tratamento na camada de serviço.
-- Login, bootstrap, aprovação, rejeição e revogação permanecem etapas posteriores.
+- A change `admin-access-management` (Passo 9) implementou o primeiro admin, o pedido de acesso e a gestão:
+  - o primeiro admin vem de `APP_BOOTSTRAP_ADMIN_SUB`, aplicada só sem nenhum `APPROVED` e serializada por advisory lock; a variável pode ficar definida, porque só volta a valer se a base ficar sem admin;
+  - rejeitar e revogar apagam a linha, sem status `REJECTED` nem histórico;
+  - aprovação e remoção travam os `APPROVED` com `FOR UPDATE` e reconferem quem executa, e ninguém remove o próprio acesso, então nunca se fica sem admin, mesmo com remoções simultâneas.
 - Nenhuma conta ou aprovação legada recebe privilégio automaticamente.
 
 ## Alternativas consideradas

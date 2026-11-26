@@ -10,7 +10,8 @@ import java.util.Map;
 @RestControllerAdvice(assignableTypes = {
     AdminEventController.class,
     AdminVariableVenueController.class,
-    AdminOtherVenueController.class
+    AdminOtherVenueController.class,
+    AdminAccessController.class
 })
 class AdminRequestExceptionHandler {
 
