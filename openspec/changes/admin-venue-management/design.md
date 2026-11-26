@@ -64,11 +64,13 @@ Um teste de integração parametrizado pelos dois recursos cobre:
 - rotas vizinhas negadas;
 - reflexo na agenda pública.
 
-O `5xx` por falha na consulta de aprovação entra em `AdminEventAuthorizationFailureIntegrationTest`, renomeado para `AdminAuthorizationFailureIntegrationTest`. Os testes atuais de eventos continuam passando sem mudança de expectativa, o que prova que a extração da validação não alterou o comportamento.
+O `5xx` por falha na consulta de aprovação entra em `AdminEventAuthorizationFailureIntegrationTest`, renomeado para `AdminAuthorizationFailureIntegrationTest`.
+
+Três testes de eventos usam rotas de locais (`/api/admin/other-venues`) como exemplo de rota bloqueada, e essas rotas passam a ser liberadas. Nesses três pontos, a rota é trocada por `/api/admin/admins`, que continua bloqueada, mantendo o mesmo método. Fora isso, os testes de eventos continuam passando sem mudança de expectativa, o que prova que a extração da validação não alterou o comportamento.
 
 ## Risks / Trade-offs
 
-- **[Refatorar a validação de eventos]** Mexer em código já revisado pode mudar o comportamento. → A suíte de eventos atual roda sem ajuste. Qualquer teste de eventos que precise mudar é sinal de regressão.
+- **[Refatorar a validação de eventos]** Mexer em código já revisado pode mudar o comportamento. → A suíte de eventos roda sem ajuste, exceto as três linhas da tarefa 1.1. Qualquer outro teste de eventos que precise mudar é sinal de regressão.
 - **[Última escrita vence]** É o mesmo risco aceito para eventos. → Fica registrado na spec, para revisão no Passo 9.
 - **[`days` livre]** O admin pode gravar texto inconsistente, como "qui-dom" num local e "Quinta a domingo" em outro. → A agenda pública já exibe esse texto como está. Estruturar o campo é outra change.
 
