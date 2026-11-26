@@ -82,10 +82,10 @@ O evento criado SHALL aparecer em `GET /api/agenda` no dia indicado, respeitando
 - **THEN** ambos aparecem na agenda entre os grupos de valores menores e maiores, sem garantia sobre a ordem relativa dos dois empatados
 
 ### Requirement: Isolamento das demais rotas administrativas
-A autorização administrativa SHALL valer apenas para `POST /api/admin/events`, `GET /api/admin/events`, `PUT /api/admin/events/{id}` e `DELETE /api/admin/events/{id}`. Todas as demais combinações de método e caminho em `/api/admin/**` SHALL continuar bloqueadas, inclusive para sessões `APPROVED`.
+Dentro de `/api/admin/events/**`, a autorização administrativa SHALL valer apenas para `POST /api/admin/events`, `GET /api/admin/events`, `PUT /api/admin/events/{id}` e `DELETE /api/admin/events/{id}`. As demais combinações de método e caminho nesse prefixo SHALL continuar bloqueadas, inclusive para sessões `APPROVED`. Rotas fora desse prefixo são regidas pelos requisitos de suas próprias capabilities.
 
 #### Scenario: Administrador aprovado tenta outra rota
-- **WHEN** uma sessão aprovada solicita uma operação administrativa fora dessas quatro, como `GET /api/admin/events/{id}`, `PATCH /api/admin/events/{id}` ou `PUT /api/admin/events`
+- **WHEN** uma sessão aprovada solicita uma operação de eventos fora dessas quatro, como `GET /api/admin/events/{id}`, `PATCH /api/admin/events/{id}` ou `PUT /api/admin/events`
 - **THEN** o sistema nega a requisição e não executa a operação
 
 #### Scenario: Leitura pública continua aberta
@@ -134,7 +134,7 @@ O sistema SHALL apresentar os dias na sequência de segunda a domingo e, dentro 
 - **THEN** os dois empatados aparecem entre os grupos menor e maior, sem garantia da ordem relativa entre eles
 
 ### Requirement: Autorização restrita da listagem
-O sistema SHALL permitir `GET /api/admin/events` apenas com sessão Google OIDC válida e aprovação `APPROVED` vigente consultada no backend para o `sub` validado. Essa liberação SHALL evoluir a regra anterior que bloqueava o GET, sem alterar o POST, o PUT e o DELETE autorizados por seus próprios requisitos nem liberar outras operações em `/api/admin/**`.
+O sistema SHALL permitir `GET /api/admin/events` apenas com sessão Google OIDC válida e aprovação `APPROVED` vigente consultada no backend para o `sub` validado. Essa liberação SHALL evoluir a regra anterior que bloqueava o GET, sem alterar o POST, o PUT e o DELETE autorizados por seus próprios requisitos nem liberar outras operações em `/api/admin/events/**`.
 
 #### Scenario: Sessão aprovada sem CSRF
 - **WHEN** uma sessão Google OIDC aprovada faz `GET /api/admin/events` sem token CSRF
@@ -157,7 +157,7 @@ O sistema SHALL permitir `GET /api/admin/events` apenas com sessão Google OIDC 
 - **THEN** a requisição não recebe a lista nem é tratada como ausência normal de aprovação; a falha produz erro `5xx`
 
 #### Scenario: Outras operações administrativas permanecem bloqueadas
-- **WHEN** uma sessão aprovada solicita um método ou caminho administrativo fora de `GET` e `POST /api/admin/events` e de `PUT` e `DELETE /api/admin/events/{id}`
+- **WHEN** uma sessão aprovada solicita, dentro de `/api/admin/events/**`, um método ou caminho fora de `GET` e `POST /api/admin/events` e de `PUT` e `DELETE /api/admin/events/{id}`
 - **THEN** o sistema nega a requisição e não executa a operação
 
 ### Requirement: Respostas da listagem sem cache
