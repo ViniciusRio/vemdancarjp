@@ -325,7 +325,7 @@ class AdminEventUpdateDeleteIntegrationTest {
             delete("/api/admin/events/"),
             put("/api/admin/events/" + id + "/x"),
             delete("/api/admin/events/" + id + "/x"),
-            delete("/api/admin/other-venues/" + id));
+            delete("/api/admin/admins/" + id));
         for (MockHttpServletRequestBuilder request : blocked) {
             mockMvc.perform(withBody(request, validBody())
                     .with(authentication(googleAuthentication(APPROVED))).with(csrf()))

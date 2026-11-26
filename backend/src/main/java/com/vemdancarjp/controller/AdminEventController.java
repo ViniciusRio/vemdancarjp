@@ -3,17 +3,16 @@ package com.vemdancarjp.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vemdancarjp.dto.request.CreateEventRequest;
 import com.vemdancarjp.dto.response.AdminEventResponse;
-import com.vemdancarjp.dto.response.CreatedEventResponse;
+import com.vemdancarjp.dto.response.CreatedResourceResponse;
 import com.vemdancarjp.entity.DayOfWeek;
 import com.vemdancarjp.repository.EventRepository;
 import com.vemdancarjp.service.EventWriteService;
 import jakarta.servlet.http.HttpServletRequest;
+import com.vemdancarjp.controller.AdminRequestValidation.InvalidAdminRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -22,13 +21,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
+
+import static com.vemdancarjp.controller.AdminRequestValidation.optionalInstagram;
+import static com.vemdancarjp.controller.AdminRequestValidation.optionalText;
+import static com.vemdancarjp.controller.AdminRequestValidation.rawId;
+import static com.vemdancarjp.controller.AdminRequestValidation.requireObjectWithFields;
+import static com.vemdancarjp.controller.AdminRequestValidation.requiredText;
+import static com.vemdancarjp.controller.AdminRequestValidation.sortOrder;
 
 @RestController
 @RequestMapping("/api/admin/events")
@@ -38,8 +41,6 @@ public class AdminEventController {
         "dayId", "name", "venue", "neighborhood", "instagram", "frequency", "sortOrder");
     private static final Set<String> DAY_IDS = Set.copyOf(
         Arrays.stream(DayOfWeek.values()).map(DayOfWeek::id).toList());
-
-    private static final Pattern EVENT_ID = Pattern.compile("[1-9][0-9]{0,18}");
 
     private final EventWriteService eventWriteService;
     private final EventRepository eventRepository;
@@ -54,7 +55,7 @@ public class AdminEventController {
         String[] dayIds = request.getParameterValues("dayId");
         if (dayIds != null) {
             if (dayIds.length != 1 || !DAY_IDS.contains(dayIds[0])) {
-                throw new InvalidEventRequestException();
+                throw new InvalidAdminRequestException();
             }
             return eventRepository.findAllByDayIdOrderBySortOrderAsc(dayIds[0]).stream()
                 .map(AdminEventResponse::new)
@@ -70,13 +71,13 @@ public class AdminEventController {
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public CreatedEventResponse create(@RequestBody JsonNode body) {
-        return new CreatedEventResponse(eventWriteService.create(parse(body)));
+    public CreatedResourceResponse create(@RequestBody JsonNode body) {
+        return new CreatedResourceResponse(eventWriteService.create(parse(body)));
     }
 
     @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> update(HttpServletRequest httpRequest, @RequestBody JsonNode body) {
-        Long eventId = parseId(rawIdSegment(httpRequest));
+        Long eventId = rawId(httpRequest);
         CreateEventRequest request = parse(body);
         return eventWriteService.update(eventId, request)
             .<ResponseEntity<?>>map(event -> ResponseEntity.ok(new AdminEventResponse(event)))
@@ -86,54 +87,17 @@ public class AdminEventController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(HttpServletRequest httpRequest) {
-        eventWriteService.delete(parseId(rawIdSegment(httpRequest)));
-    }
-
-    @ExceptionHandler({InvalidEventRequestException.class, HttpMessageNotReadableException.class})
-    public ResponseEntity<Map<String, String>> invalidRequest() {
-        return ResponseEntity.badRequest().body(Map.of("error", "VALIDATION_ERROR"));
-    }
-
-    private static String rawIdSegment(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        return uri.substring(uri.lastIndexOf('/') + 1);
-    }
-
-    private static Long parseId(String id) {
-        if (!EVENT_ID.matcher(id).matches()) {
-            throw new InvalidEventRequestException();
-        }
-        try {
-            return Long.parseLong(id);
-        } catch (NumberFormatException exception) {
-            throw new InvalidEventRequestException();
-        }
+        eventWriteService.delete(rawId(httpRequest));
     }
 
     private static CreateEventRequest parse(JsonNode body) {
-        if (body == null || !body.isObject()) {
-            throw new InvalidEventRequestException();
-        }
-        Iterator<String> fields = body.fieldNames();
-        while (fields.hasNext()) {
-            if (!ALLOWED_FIELDS.contains(fields.next())) {
-                throw new InvalidEventRequestException();
-            }
-        }
-
+        requireObjectWithFields(body, ALLOWED_FIELDS);
         String dayId = requiredText(body, "dayId");
         if (dayId.length() > 10 || !DAY_IDS.contains(dayId)) {
-            throw new InvalidEventRequestException();
+            throw new InvalidAdminRequestException();
         }
-        JsonNode sortOrder = body.get("sortOrder");
-        if (sortOrder == null || !sortOrder.isIntegralNumber() || !sortOrder.canConvertToInt()) {
-            throw new InvalidEventRequestException();
-        }
-
-        String instagram = optionalText(body, "instagram");
-        if (instagram != null && !validHttpUrl(instagram)) {
-            throw new InvalidEventRequestException();
-        }
+        int sortOrder = sortOrder(body);
+        String instagram = optionalInstagram(body);
 
         return new CreateEventRequest(
             dayId,
@@ -142,42 +106,6 @@ public class AdminEventController {
             requiredText(body, "neighborhood"),
             instagram,
             optionalText(body, "frequency"),
-            sortOrder.intValue());
-    }
-
-    private static String optionalText(JsonNode body, String field) {
-        JsonNode node = body.get(field);
-        if (node == null || node.isNull()) {
-            return null;
-        }
-        if (!node.isTextual()) {
-            throw new InvalidEventRequestException();
-        }
-        String value = node.textValue().strip();
-        if (value.indexOf('\0') >= 0) {
-            throw new InvalidEventRequestException();
-        }
-        return value.isEmpty() ? null : value;
-    }
-
-    private static String requiredText(JsonNode body, String field) {
-        String value = optionalText(body, field);
-        if (value == null) {
-            throw new InvalidEventRequestException();
-        }
-        return value;
-    }
-
-    private static boolean validHttpUrl(String value) {
-        try {
-            URI uri = URI.create(value);
-            return uri.isAbsolute() && uri.getHost() != null &&
-                ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()));
-        } catch (IllegalArgumentException exception) {
-            return false;
-        }
-    }
-
-    private static class InvalidEventRequestException extends RuntimeException {
+            sortOrder);
     }
 }
