@@ -21,7 +21,10 @@
       "Edit(./.env)",
       "Edit(./.env.local)",
       "Edit(./.env.*.local)",
-      "Edit(./backend/.env)"
+      "Edit(./backend/.env)",
+      "Bash(git push *refs/heads/main*)",
+      "Bash(*.env.local*)",
+      "Bash(*backend/.env*)"
     ]
   }
 }
